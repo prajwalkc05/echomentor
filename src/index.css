@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+/* ── Theme variables ── */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f3f4f6;
+  --bg-card: #ffffff;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --border: #e5e7eb;
+  --input-bg: #ffffff;
+}
+
+html.dark {
+  --bg-primary: #0a0a16;
+  --bg-secondary: #0f0f1e;
+  --bg-card: #1a1a2e;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --border: rgba(255,255,255,0.05);
+  --input-bg: rgba(255,255,255,0.05);
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Auth pages (login/signup) theme ── */
+.auth-panel-right {
+  background-color: var(--bg-secondary);
+  transition: background-color 0.2s ease;
+}
+
+.auth-input {
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  border-color: var(--border);
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+html.dark .auth-input {
+  border-color: rgba(255,255,255,0.1);
+}
+
+html.dark .auth-input::placeholder {
+  color: #4b5563;
+}
+
+.auth-label {
+  color: var(--text-secondary);
+}
+
+html.dark .auth-label {
+  color: #9ca3af;
+}
+
+.auth-heading {
+  color: var(--text-primary);
+}
+
+.auth-subtext {
+  color: var(--text-secondary);
+}
+
+/* ── Landing page theme ── */
+.landing-bg {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html:not(.dark) .landing-bg {
+  background-color: #ffffff;
+  color: #111827;
+}
+
+html:not(.dark) .landing-nav {
+  background-color: rgba(255,255,255,0.95);
+  border-color: #e5e7eb;
+}
+
+html:not(.dark) .landing-hero-text {
+  color: #111827;
+}
+
+html:not(.dark) .landing-subtext {
+  color: #6b7280;
+}
+
+html:not(.dark) .landing-card {
+  background-color: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+html:not(.dark) .landing-stats {
+  background-color: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+html:not(.dark) .landing-footer {
+  border-color: #e5e7eb;
+  color: #9ca3af;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
+
+pre { white-space: pre-wrap; word-break: break-word; }
+button:focus { outline: none; }
+input:focus, textarea:focus, select:focus { outline: none; }
+
+/* ── Resume Builder Print Styles ── */
+@media print {
+  @page {
+    margin: 0;
+    size: A4 portrait;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  
+  body * {
+    visibility: hidden !important;
+  }
+  
+  #resume-print-area,
+  #resume-print-area * {
+    visibility: visible !important;
+  }
+  
+  #resume-print-area {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 794px !important;
+    height: 1123px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}

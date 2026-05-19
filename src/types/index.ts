@@ -1,0 +1,18 @@
+export type Page = 
+  | 'landing'
+  | 'signup'
+  | 'login'
+  | 'onboarding'
+  | 'dashboard'
+  | 'ai-chat'
+  | 'mood-tracker'
+  | 'study-planner'
+  | 'ai-tools'
+  | 'opportunities'
+  | 'resume-builder'
+  | 'startup-guide'
+  | 'courses'
+  | 'settings'
+  | 'help'
+  | 'code-assistant'
+  | 'ppt-generator';
