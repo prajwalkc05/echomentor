@@ -16,9 +16,44 @@ export const authService = {
 };
 
 // AI Chat Service - Token required
+const SYSTEM_PROMPT = `You are EchoMentor AI, a professional conversational AI assistant for students.
+
+CRITICAL RULES:
+1. Always read the FULL conversation history before responding.
+2. If the user says "only code", "just code", "code only", "short answer", "brief", or "just the answer" — follow that instruction STRICTLY. No explanations unless asked.
+3. NEVER ignore previous context. If the user already specified a topic, language, or format — remember it.
+4. For code requests: return clean code blocks using markdown fences with the language specified (e.g. \`\`\`python).
+5. NEVER return raw JSON objects or unformatted data.
+6. Be conversational and context-aware like ChatGPT.
+7. Keep responses concise unless the user asks for detail.
+8. Use markdown formatting: headers, bullet points, bold, code blocks where appropriate.
+9. Prioritize the LATEST user instruction above all else.`;
+
 export const aiChatService = {
-  async sendMessage(message: string) {
-    return api.post('/api/ai/chat', { message });
+  async extractFiles(files: File[]) {
+    const token = localStorage.getItem('authToken');
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';
+    const form = new FormData();
+    files.forEach(f => form.append('files', f));
+    const res = await fetch(`${baseUrl}/api/ai/extract`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json() as Promise<{ success: boolean; extractedText: string; fileNames: string[] }>;
+  },
+
+  async sendMessage(
+    message: string,
+    conversationHistory?: Array<{role: string; content: string}>,
+    fileContext?: string
+  ) {
+    const messages = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...(conversationHistory ?? [{ role: 'user', content: message }]),
+    ];
+    return api.post('/api/ai/chat', { message, messages, fileContext: fileContext || undefined });
   },
 
   async getHistory() {
@@ -62,8 +97,56 @@ export const resumeService = {
 
 // Study Planner Service - Token required
 export const studyPlannerService = {
+  // Legacy endpoint
   async create(data: any) {
     return api.post('/api/study-planner/create', data);
+  },
+
+  // New endpoints
+  async generate(data: {
+    subject: string;
+    topics: string[];
+    examDate: string;
+    dailyHours: number;
+    difficultyLevel: 'Beginner' | 'Intermediate' | 'Advanced';
+  }) {
+    return api.post('/api/study-planner/generate', data);
+  },
+
+  async explainTopic(topic: string, style: 'simple' | 'detailed' = 'simple') {
+    return api.post('/api/study-planner/explain', { topic, style });
+  },
+
+  async generateQuestions(topic: string, count: number = 5, difficulty: string = 'Medium') {
+    return api.post('/api/study-planner/questions', { topic, count, difficulty });
+  },
+
+  async submitQuiz(planId: string, topic: string, questions: any[], answers: Record<string, string>) {
+    return api.post('/api/study-planner/quiz-submit', { planId, topic, questions, answers });
+  },
+
+  async getVideoRecommendations(topic: string) {
+    return api.post('/api/study-planner/videos', { topic });
+  },
+
+  async updateProgress(planId: string, taskId: string, completed: boolean, performance?: number) {
+    return api.put(`/api/study-planner/${planId}/progress`, { taskId, completed, performance });
+  },
+
+  async getAdaptiveUpdates(planId: string) {
+    return api.get(`/api/study-planner/${planId}/adaptive`);
+  },
+
+  async generateNotes(topic: string, examMode: boolean = false) {
+    return api.post('/api/study-planner/notes', { topic, examMode });
+  },
+
+  async getPlanDetails(planId: string) {
+    return api.get(`/api/study-planner/${planId}`);
+  },
+
+  async getAnalytics(planId: string) {
+    return api.get(`/api/study-planner/${planId}/analytics`);
   },
 
   async getAll() {
@@ -216,5 +299,48 @@ export const userService = {
 
   async saveOnboarding(data: { interests: string[]; goals: string[]; education: string; skills: string[]; learningStyle: string }) {
     return api.post('/api/user/onboarding', data);
+  },
+
+  async saveCourseOnboarding(data: { careerGoal: string; interests: string[]; learningStyle: string; skillLevel: string; mainGoal: string }) {
+    return api.post('/api/user/course-onboarding', data);
+  },
+};
+
+// Startup Guide Service - Token required
+export const startupGuideService = {
+  async generateIdeas(problem: string, domain?: string) {
+    return api.post('/api/startup/ideas', { problem, domain });
+  },
+
+  async validateIdea(ideaId: string, ideaData: any) {
+    return api.post('/api/startup/validate', { ideaId, ideaData });
+  },
+
+  async generateMVP(ideaData: any) {
+    return api.post('/api/startup/mvp', ideaData);
+  },
+
+  async generateRoadmap(ideaData: any) {
+    return api.post('/api/startup/roadmap', ideaData);
+  },
+
+  async analyzeFunding(ideaData: any) {
+    return api.post('/api/startup/funding', ideaData);
+  },
+
+  async chatWithCofounder(message: string, context?: any) {
+    return api.post('/api/startup/cofounder', { message, context });
+  },
+
+  async saveIdea(ideaData: any) {
+    return api.post('/api/startup/save', ideaData);
+  },
+
+  async getSavedIdeas() {
+    return api.get('/api/startup/saved');
+  },
+
+  async getProgress() {
+    return api.get('/api/startup/progress');
   },
 };

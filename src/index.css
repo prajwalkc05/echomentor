@@ -4,6 +4,50 @@
   box-sizing: border-box;
 }
 
+/* ── Global Layout Fixes ── */
+html, body {
+  overflow-y: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Line Clamp Utility ── */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Fix for AI Response Rendering ── */
+.ai-response {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #ffffff;
+  line-height: 1.6;
+}
+
+.ai-response:empty::before {
+  content: "No response generated";
+  color: #9ca3af;
+  font-style: italic;
+}
+
 /* ── Theme variables ── */
 :root {
   --bg-primary: #ffffff;
@@ -25,14 +69,6 @@ html.dark {
   --text-muted: #6b7280;
   --border: rgba(255,255,255,0.05);
   --input-bg: rgba(255,255,255,0.05);
-}
-
-body {
-  margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* ── Auth pages (login/signup) theme ── */
@@ -155,4 +191,81 @@ input:focus, textarea:focus, select:focus { outline: none; }
     page-break-after: avoid !important;
     page-break-inside: avoid !important;
   }
+}
+
+/* ── Startup Guide Animations ── */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(168, 85, 247, 0.8);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Startup Guide Scrollbar */
+.startup-guide-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.startup-guide-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.startup-guide-scroll::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.5);
+  border-radius: 4px;
+}
+
+.startup-guide-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.7);
 }

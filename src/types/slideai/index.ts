@@ -21,8 +21,11 @@ export type LayoutType =
 export interface SlideContent {
   title?: string;
   subtitle?: string;
+  highlight?: string;
   description?: string;
   bullets?: string[];
+  imagePrompt?: string;
+  needsImage?: boolean;
   cards?: { title: string; description: string; icon?: string }[];
   stats?: { value: string; label: string; color?: string }[];
   timeline?: { step: string; title: string; description: string }[];

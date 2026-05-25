@@ -90,7 +90,8 @@ interface AppDataContextType {
   
   // AI Chat
   chatHistory: ChatMessage[];
-  sendChatMessage: (message: string) => Promise<{ text: string; backendId?: string }>;
+  sendChatMessage: (message: string, conversationHistory?: Array<{role: string; content: string}>, fileContext?: string) => Promise<string>;
+  extractFiles: (files: File[]) => Promise<{ extractedText: string; fileNames: string[] }>;
   fetchChatHistory: () => Promise<void>;
   deleteChatMessage: (chatId: string) => Promise<void>;
   clearAllChatHistory: () => Promise<void>;
@@ -305,15 +306,20 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   // AI Chat
-  const sendChatMessage = async (message: string): Promise<{ text: string; backendId?: string }> => {
+  const sendChatMessage = async (message: string, conversationHistory?: Array<{role: string; content: string}>, fileContext?: string): Promise<string> => {
     try {
-      const response = await aiChatService.sendMessage(message);
+      console.log('📤 Sending chat message:', { message, hasHistory: !!conversationHistory, hasFileContext: !!fileContext });
+      
+      const response = await aiChatService.sendMessage(message, conversationHistory, fileContext);
+      
+      console.log('📥 Received response:', response);
+      console.log('📥 Response type:', typeof response);
 
       let finalResponse = 'No response received';
-      let backendId: string | undefined;
 
       if (typeof response === 'string' && response.trim()) {
         finalResponse = response.trim();
+        console.log('✅ Using string response:', finalResponse.substring(0, 100));
       } else if (response && typeof response === 'object') {
         finalResponse = response.reply ||
                       response.message ||
@@ -321,16 +327,30 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
                       response.text ||
                       response.answer ||
                       'No response received';
-        backendId = response._id || response.id;
+        console.log('✅ Extracted from object:', { 
+          hasReply: !!response.reply, 
+          hasMessage: !!response.message,
+          hasResponse: !!response.response,
+          finalResponse: finalResponse.substring(0, 100)
+        });
         if (typeof finalResponse === 'object') {
           finalResponse = JSON.stringify(finalResponse);
         }
       }
 
-      return { text: finalResponse, backendId };
+      console.log('✅ Final response:', finalResponse.substring(0, 100));
+      return finalResponse;
     } catch (error: any) {
+      console.error('❌ Chat error:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
       throw error;
     }
+  };
+
+  const extractFiles = async (files: File[]): Promise<{ extractedText: string; fileNames: string[] }> => {
+    const result = await aiChatService.extractFiles(files);
+    return { extractedText: result.extractedText, fileNames: result.fileNames };
   };
 
   const fetchChatHistory = async () => {
@@ -472,6 +492,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       removeBookmark,
       chatHistory,
       sendChatMessage,
+      extractFiles,
       fetchChatHistory,
       deleteChatMessage,
       clearAllChatHistory,

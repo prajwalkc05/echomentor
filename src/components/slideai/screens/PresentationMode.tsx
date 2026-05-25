@@ -1,6 +1,6 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Maximize2, Play, Pause } from 'lucide-react';
 import { usePresentationStore } from '../../../store/slideai/presentationStore';
 import { SlideRenderer } from '../slides/SlideRenderer';
 
@@ -23,6 +23,7 @@ export default function PresentationMode() {
   const slides = currentPresentation?.slides || [];
   const theme = currentPresentation?.theme || 'future-neon';
   const currentSlide = slides[presentSlideIndex];
+  const [autoplay, setAutoplay] = useState(false);
 
   const goNext = useCallback(() => {
     if (presentSlideIndex < slides.length - 1) {
@@ -74,6 +75,18 @@ export default function PresentationMode() {
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [goNext, goPrev, handleExit]);
+
+  useEffect(() => {
+    if (!autoplay) return;
+    const timer = setInterval(() => {
+      if (presentSlideIndex < slides.length - 1) {
+        setPresentSlideIndex(presentSlideIndex + 1);
+      } else {
+        setAutoplay(false);
+      }
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [autoplay, presentSlideIndex, slides.length, setPresentSlideIndex]);
 
   if (!currentPresentation || !currentSlide) {
     return null;
@@ -194,11 +207,25 @@ export default function PresentationMode() {
           ))}
         </div>
 
-        {/* Slide counter + fullscreen */}
+        {/* Slide counter + controls */}
         <div className="flex items-center gap-3">
           <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 600 }}>
             {presentSlideIndex + 1} / {slides.length}
           </span>
+          <button
+            onClick={() => setAutoplay((a) => !a)}
+            title={autoplay ? 'Pause autoplay' : 'Start autoplay'}
+            className="flex items-center justify-center rounded-lg"
+            style={{
+              width: 32,
+              height: 32,
+              background: autoplay ? 'rgba(60,242,255,0.2)' : 'rgba(255,255,255,0.08)',
+              border: autoplay ? '1px solid rgba(60,242,255,0.4)' : '1px solid rgba(255,255,255,0.15)',
+              color: autoplay ? '#3CF2FF' : 'rgba(255,255,255,0.6)',
+            }}
+          >
+            {autoplay ? <Pause size={14} /> : <Play size={14} />}
+          </button>
           <button
             onClick={() => document.documentElement.requestFullscreen?.()}
             className="flex items-center justify-center rounded-lg"

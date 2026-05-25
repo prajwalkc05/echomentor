@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { ChevronRight, ArrowRight, Flame, MessageCircle, CheckSquare, Smile, Calendar, Presentation, Code, FileText, Briefcase, Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronRight, ArrowRight, Flame, MessageCircle, CheckSquare, Smile, Calendar, Presentation, Code, FileText, Briefcase, Plus, Sparkles } from 'lucide-react';
 import { Page } from '../types';
 import { useUser } from '../context/UserContext';
 import { useAppData } from '../context';
@@ -7,6 +7,14 @@ import { storage } from '../utils/storage';
 
 interface DashboardProps {
   onNavigate: (page: Page) => void;
+}
+
+interface UserLearningProfile {
+  careerGoal: string;
+  interests: string[];
+  learningStyle: string;
+  skillLevel: string;
+  mainGoal: string;
 }
 
 const quickAccess = [
@@ -25,9 +33,100 @@ const quotes = [
   { text: "It always seems impossible until it's done.", author: 'Nelson Mandela' },
 ];
 
+function generateAIRecommendations(profile: UserLearningProfile): string[] {
+  const recommendations: string[] = [];
+
+  // Based on career goal
+  const careerMap: Record<string, string[]> = {
+    'frontend': [
+      'Master React fundamentals for modern web development',
+      'Learn responsive design with Tailwind CSS',
+      'Build interactive projects with JavaScript'
+    ],
+    'backend': [
+      'Learn Node.js and Express for server development',
+      'Master database design with MongoDB or PostgreSQL',
+      'Understand REST API architecture'
+    ],
+    'fullstack': [
+      'Build complete web applications with React and Node.js',
+      'Master full-stack development patterns',
+      'Learn deployment and DevOps basics'
+    ],
+    'data-scientist': [
+      'Master Python for data analysis',
+      'Learn machine learning with scikit-learn',
+      'Practice data visualization with Pandas'
+    ],
+    'ml-engineer': [
+      'Deep dive into neural networks and TensorFlow',
+      'Learn model deployment and optimization',
+      'Study advanced ML algorithms'
+    ],
+    'devops': [
+      'Master Docker and containerization',
+      'Learn Kubernetes for orchestration',
+      'Understand CI/CD pipelines'
+    ],
+    'designer': [
+      'Master Figma for UI/UX design',
+      'Learn design systems and component libraries',
+      'Study user research and usability testing'
+    ],
+    'product-manager': [
+      'Learn product strategy and roadmapping',
+      'Master user research methodologies',
+      'Study analytics and metrics'
+    ],
+    'entrepreneur': [
+      'Learn startup fundamentals and business models',
+      'Master pitch deck creation',
+      'Study fundraising and investor relations'
+    ],
+    'student': [
+      'Focus on exam-specific topics and practice tests',
+      'Master time management and study techniques',
+      'Build strong foundational knowledge'
+    ]
+  };
+
+  const baseRecs = careerMap[profile.careerGoal] || [
+    'Start with fundamentals in your chosen field',
+    'Build practical projects to reinforce learning',
+    'Join communities and collaborate with peers'
+  ];
+
+  // Customize based on skill level
+  if (profile.skillLevel === 'Beginner') {
+    recommendations.push(`Start with: ${baseRecs[0]}`);
+  } else if (profile.skillLevel === 'Intermediate') {
+    recommendations.push(`Advance your skills: ${baseRecs[0]}`);
+  } else if (profile.skillLevel === 'Advanced') {
+    recommendations.push(`Master advanced concepts: ${baseRecs[0]}`);
+  }
+
+  recommendations.push(baseRecs[1]);
+  recommendations.push(baseRecs[2]);
+
+  // Add goal-specific recommendation
+  if (profile.mainGoal === 'Get a Job') {
+    recommendations[2] = 'Build portfolio projects to showcase skills';
+  } else if (profile.mainGoal === 'Pass Exams') {
+    recommendations[2] = 'Focus on exam-specific topics and practice tests';
+  } else if (profile.mainGoal === 'Build Projects') {
+    recommendations[2] = 'Start building real-world projects immediately';
+  } else if (profile.mainGoal === 'Career Switch') {
+    recommendations[2] = 'Accelerate learning with intensive courses';
+  }
+
+  return recommendations.slice(0, 3);
+}
+
 export default function Dashboard({ onNavigate }: DashboardProps) {
   const { user } = useUser();
   const { chatHistory, moodHistory, studyPlans, fetchChatHistory, fetchMoodHistory } = useAppData();
+  const [userProfile, setUserProfile] = useState<UserLearningProfile | null>(null);
+  const [aiRecommendations, setAiRecommendations] = useState<string[]>([]);
 
   // Read local chat sessions count for accurate display
   const localSessions = (() => {
@@ -38,6 +137,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   useEffect(() => {
     fetchChatHistory();
     fetchMoodHistory();
+    
+    // Load user learning profile and generate AI recommendations
+    const profile = storage.getJSON<UserLearningProfile>('userLearningProfile');
+    if (profile) {
+      setUserProfile(profile);
+      setAiRecommendations(generateAIRecommendations(profile));
+    }
   }, []);
 
   const today = new Date();
@@ -59,34 +165,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     { icon: <CheckSquare size={20} className="text-green-400" />, bg: 'bg-green-400/10', label: 'Study Plans', val: String(Array.isArray(studyPlans) ? studyPlans.length : 0), unit: 'total', color: 'text-green-400' },
     { icon: <Smile size={20} className="text-yellow-400" />, bg: 'bg-yellow-400/10', label: 'Mood Today', val: moodEmoji, unit: todayMood ? todayMood.mood.split(' ')[0] : 'not set', color: 'text-yellow-400' },
   ];
-
-  // Merge local sessions + backend history for recent activity
-  const localChatActivity = Array.isArray(localSessions) ? localSessions.slice(0, 3).map((s: any) => ({
-    icon: <MessageCircle size={14} className="text-blue-400" />,
-    bg: 'bg-blue-600/20',
-    title: (s.title || s.messages?.[0]?.text || 'Chat session').slice(0, 50),
-    time: s.time || 'Recently',
-    page: 'ai-chat' as Page,
-  })) : [];
-
-  const recentActivity = [
-    ...(localChatActivity.length > 0 ? localChatActivity : (Array.isArray(chatHistory) ? chatHistory.slice(0, 3) : []).map(chat => ({
-      icon: <MessageCircle size={14} className="text-blue-400" />,
-      bg: 'bg-blue-600/20',
-      title: (chat.message || '').slice(0, 50) || 'Chat session',
-      time: chat.timestamp && !isNaN(new Date(chat.timestamp).getTime())
-        ? new Date(chat.timestamp).toLocaleDateString() : 'Recently',
-      page: 'ai-chat' as Page,
-    }))),
-    ...(Array.isArray(moodHistory) ? moodHistory.slice(0, 2) : []).map(mood => ({
-      icon: <Smile size={14} className="text-yellow-400" />,
-      bg: 'bg-yellow-600/20',
-      title: `Mood: ${(mood.mood || '').split(' ')[0]}`,
-      time: mood.date && !isNaN(new Date(mood.date).getTime())
-        ? new Date(mood.date).toLocaleDateString() : 'Recently',
-      page: 'mood-tracker' as Page,
-    })),
-  ].slice(0, 4);
 
   return (
     <div className="flex-1 flex flex-col bg-[#0f0f1e] overflow-hidden">
@@ -143,29 +221,40 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-[#1a1a2e] border border-white/5 rounded-2xl p-5">
-              <h3 className="text-white font-semibold mb-3">Recent Activity</h3>
-              {recentActivity.length === 0 ? (
-                <div className="flex items-center gap-3 py-4 text-center justify-center">
-                  <MessageCircle size={18} className="text-gray-600" />
-                  <p className="text-gray-500 text-sm">No activity yet. Start using the app!</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {recentActivity.map((item, i) => (
-                    <div key={i} onClick={() => onNavigate(item.page)} className="flex items-center gap-3 p-2.5 bg-white/5 rounded-xl cursor-pointer hover:bg-white/10 transition-colors">
-                      <div className={`w-7 h-7 ${item.bg} rounded-lg flex items-center justify-center shrink-0`}>{item.icon}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-xs font-medium truncate">{item.title}</p>
-                        <p className="text-gray-500 text-xs">{item.time}</p>
+            {/* AI Recommendations */}
+            {userProfile ? (
+              <div className="bg-linear-to-br from-purple-900/30 to-indigo-900/30 border border-purple-500/30 rounded-2xl p-6">
+                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                  <Sparkles size={20} className="text-purple-400" />
+                  AI Recommendations for {userProfile.careerGoal}
+                </h3>
+                <div className="space-y-3">
+                  {aiRecommendations.map((rec, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                      <div className="w-2 h-2 rounded-full bg-purple-400 mt-1.5 shrink-0" />
+                      <div>
+                        <p className="text-white text-sm font-medium">{rec}</p>
+                        <p className="text-gray-400 text-xs mt-1">Based on your {userProfile.mainGoal} goal</p>
                       </div>
-                      <ChevronRight size={12} className="text-gray-600 shrink-0" />
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+                <button onClick={() => onNavigate('courses')} className="w-full mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors">
+                  <Sparkles size={16} /> View Personalized Courses
+                </button>
+              </div>
+            ) : (
+              <div className="bg-linear-to-br from-purple-900/30 to-indigo-900/30 border border-purple-500/30 rounded-2xl p-6">
+                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                  <Sparkles size={20} className="text-purple-400" />
+                  AI Recommendations
+                </h3>
+                <p className="text-gray-400 text-sm mb-4">Complete your learning profile to get personalized recommendations</p>
+                <button onClick={() => onNavigate('courses')} className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors">
+                  <Sparkles size={16} /> Set Up Learning Profile
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Right column */}
@@ -196,7 +285,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             </div>
 
-            {/* Today's Tasks */}
+            {/* Study Plans */}
             <div className="bg-[#1a1a2e] border border-white/5 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-white font-semibold text-sm">Study Plans</h3>

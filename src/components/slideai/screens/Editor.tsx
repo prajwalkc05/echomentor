@@ -10,23 +10,11 @@ import { usePresentationStore } from '../../../store/slideai/presentationStore';
 import { SlideRenderer } from '../slides/SlideRenderer';
 import { themes } from '../../../templates/slideai/themes';
 import type { Slide, LayoutType, ThemeId } from '../../../types/slideai';
+import { LAYOUT_REGISTRY } from '../engine/layoutRegistry';
+import { ImageUploadPanel } from '../components/ImageUploadPanel';
 import toast from 'react-hot-toast';
 
-const LAYOUTS: { id: LayoutType; label: string; icon: string }[] = [
-  { id: 'cover-hero', label: 'Cover / Hero', icon: '🎯' },
-  { id: 'split-left-text', label: 'Split Left', icon: '◧' },
-  { id: 'split-right-text', label: 'Split Right', icon: '◨' },
-  { id: 'center-title', label: 'Center Title', icon: '⬛' },
-  { id: 'bullets-image', label: 'Bullets + Image', icon: '📋' },
-  { id: 'grid-cards', label: 'Grid Cards', icon: '⊞' },
-  { id: 'stats-grid', label: 'Stats Grid', icon: '📊' },
-  { id: 'timeline', label: 'Timeline', icon: '📅' },
-  { id: 'team-grid', label: 'Team Grid', icon: '👥' },
-  { id: 'comparison', label: 'Comparison', icon: '⚖️' },
-  { id: 'results', label: 'Results', icon: '📈' },
-  { id: 'architecture', label: 'Architecture', icon: '🏗️' },
-  { id: 'thank-you', label: 'Thank You', icon: '🙏' },
-];
+const LAYOUTS = LAYOUT_REGISTRY.map((l) => ({ id: l.id, label: l.label, icon: l.icon }));
 
 function SlideThumbnail({
   slide,
@@ -86,7 +74,28 @@ function EditPanel({
   theme: ThemeId;
 }) {
   const [activeTab, setActiveTab] = useState<'content' | 'layout' | 'theme' | 'design'>('content');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
   const c = slide.content;
+  const handleAISlideGenerate = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error('Please enter a topic or prompt first.');
+      return;
+    }
+    setAiGenerating(true);
+    toast.loading('AI is writing slide content...', { id: 'ai-slide' });
+    try {
+      const { generateSingleSlideWithAI } = await import('../../../services/slideai/aiGenerationService');
+      const generatedContent = await generateSingleSlideWithAI(aiPrompt, slide.layout);
+      onUpdate({ content: { ...slide.content, ...generatedContent } });
+      toast.success('Slide content updated!', { id: 'ai-slide', icon: '✨' });
+      setAiPrompt('');
+    } catch (e: any) {
+      toast.error(e.message || 'AI generation failed.', { id: 'ai-slide' });
+    } finally {
+      setAiGenerating(false);
+    }
+  };
 
   const updateContent = (key: string, value: unknown) => {
     onUpdate({ content: { ...slide.content, [key]: value } });
@@ -126,6 +135,56 @@ function EditPanel({
       <div className="flex-1 overflow-y-auto p-4" style={{ scrollbarWidth: 'thin' }}>
         {activeTab === 'content' && (
           <div className="space-y-4">
+            {/* AI Slide Assistant */}
+            <div
+              className="rounded-xl p-3 mb-2 space-y-2"
+              style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                ✨ AI Slide Writer
+              </div>
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, lineHeight: 1.4 }}>
+                Generate or rewrite content for this slide with AI visuals.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="e.g. Benefits of AI in medicine..."
+                  className="flex-1 rounded-lg text-white text-xs"
+                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(124,58,237,0.3)', padding: '6px 10px', outline: 'none' }}
+                />
+                <button
+                  onClick={handleAISlideGenerate}
+                  disabled={aiGenerating}
+                  className="rounded-lg px-3 text-xs font-bold transition-all"
+                  style={{
+                    background: 'linear-gradient(135deg, #7c3aed, #a78bfa)',
+                    color: '#fff',
+                    opacity: aiGenerating ? 0.6 : 1,
+                    cursor: aiGenerating ? 'wait' : 'pointer',
+                  }}
+                >
+                  {aiGenerating ? '...' : 'Write'}
+                </button>
+              </div>
+            </div>
+
+            {/* Highlight */}
+            <div>
+              <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
+                Key Highlight
+              </label>
+              <input
+                value={c.highlight || ''}
+                onChange={(e) => updateContent('highlight', e.target.value)}
+                className="w-full rounded-lg text-white text-sm font-medium"
+                style={{ background: 'rgba(60,242,255,0.06)', border: '1px solid rgba(60,242,255,0.2)', padding: '10px 12px', outline: 'none' }}
+                placeholder="One emphasis line..."
+              />
+            </div>
+
             {/* Title */}
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
@@ -299,15 +358,7 @@ function EditPanel({
 
         {activeTab === 'design' && (
           <div className="space-y-4">
-            <div
-              className="rounded-xl p-4"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                Slide Layout
-              </div>
-              <div style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{slide.layout.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</div>
-            </div>
+            <ImageUploadPanel slide={slide} onUpdate={onUpdate} />
             <div
               className="rounded-xl p-4"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
@@ -317,17 +368,6 @@ function EditPanel({
               </div>
               <div style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
                 {themes[slide.theme || theme]?.name || 'Future Neon'}
-              </div>
-            </div>
-            <div
-              className="rounded-xl p-4"
-              style={{ background: 'rgba(255,216,77,0.06)', border: '1px solid rgba(255,216,77,0.15)' }}
-            >
-              <div style={{ color: '#FFD84D', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                💡 Pro Tip
-              </div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, lineHeight: 1.6 }}>
-                Use the Content tab to edit text inline. Switch layouts in the Layout tab to completely change the slide structure while keeping your content.
               </div>
             </div>
           </div>
@@ -348,6 +388,8 @@ export default function Editor() {
     setCurrentScreen,
     setPresentMode,
     updatePresentation,
+    savePresentation,
+    pushUndoSnapshot,
     undo,
     redo,
     canUndo,
@@ -388,15 +430,16 @@ export default function Editor() {
   const { slides, theme } = currentPresentation;
   const selectedSlide = slides[selectedSlideIndex];
 
-  const handleSlideUpdate = (updates: Partial<Slide>) => {
+  const handleSlideUpdate = (updates: Partial<Slide>, skipUndo = true) => {
     if (selectedSlide) {
-      updateSlide(selectedSlide.id, updates);
+      updateSlide(selectedSlide.id, updates, { skipUndo });
     }
   };
 
   const handleLayoutChange = (layout: LayoutType) => {
     if (selectedSlide) {
-      updateSlide(selectedSlide.id, { layout });
+      pushUndoSnapshot();
+      updateSlide(selectedSlide.id, { layout }, { skipUndo: false });
     }
   };
 
@@ -443,7 +486,7 @@ export default function Editor() {
 
   const handleSave = () => {
     if (currentPresentation) {
-      updatePresentation(currentPresentation.id, { updatedAt: new Date() });
+      savePresentation();
       toast.success('Presentation saved!', { icon: '💾' });
     }
   };
@@ -499,6 +542,8 @@ export default function Editor() {
         const description = slide.content.description || '';
         const bullets = slide.content.bullets || [];
         const textColor = theme === 'corporate-yellow' ? '1a1a2e' : 'FFFFFF';
+        const isDark = theme !== 'corporate-yellow';
+        const mutedTextColor = isDark ? 'A0A0A0' : '666666';
         const accentColor = themeColors.primary.replace('#', '');
 
         // Title
@@ -512,7 +557,7 @@ export default function Editor() {
         if (description) {
           pptSlide.addText(description, {
             x: 0.5, y: 1.7, w: slide.layout.includes('split') ? 5 : 9, h: 1.5,
-            fontSize: 14, color: textColor + 'BB', fontFace: 'Calibri',
+            fontSize: 14, color: mutedTextColor, fontFace: 'Calibri',
             align: slide.layout === 'cover-hero' || slide.layout === 'center-title' ? 'center' : 'left',
           });
         }
@@ -538,7 +583,7 @@ export default function Editor() {
             const x = 0.5 + (si % 4) * 2.4;
             const y = 2.5 + Math.floor(si / 4) * 1.8;
             pptSlide.addText(stat.value, { x, y, w: 2.2, h: 0.8, fontSize: 28, bold: true, color: accentColor, align: 'center' });
-            pptSlide.addText(stat.label, { x, y: y + 0.85, w: 2.2, h: 0.5, fontSize: 11, color: textColor + 'AA', align: 'center' });
+            pptSlide.addText(stat.label, { x, y: y + 0.85, w: 2.2, h: 0.5, fontSize: 11, color: mutedTextColor, align: 'center' });
           });
         }
 
@@ -549,7 +594,7 @@ export default function Editor() {
             const x = 0.4 + (ci % cols) * (9.4 / cols);
             const y = 2 + Math.floor(ci / cols) * 1.6;
             pptSlide.addText(`${card.icon || ''} ${card.title}`, { x, y, w: 9.4 / cols - 0.2, h: 0.4, fontSize: 13, bold: true, color: accentColor });
-            pptSlide.addText(card.description, { x, y: y + 0.45, w: 9.4 / cols - 0.2, h: 0.9, fontSize: 11, color: textColor + 'AA' });
+            pptSlide.addText(card.description, { x, y: y + 0.45, w: 9.4 / cols - 0.2, h: 0.9, fontSize: 11, color: mutedTextColor });
           });
         }
       }

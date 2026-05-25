@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, Sparkles, BookOpen, Trophy, Users } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Sparkles, BookOpen, Trophy, Users, ArrowLeft } from 'lucide-react';
 import { Page } from '../types';
 import { useUser } from '../context/UserContext';
 
@@ -51,7 +51,14 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
       </div>
 
       {/* Right Panel */}
-      <div className="flex-1 bg-linear-to-br from-gray-50 to-purple-50 flex items-center justify-center p-8">
+      <div className="flex-1 bg-linear-to-br from-gray-50 to-purple-50 flex items-center justify-center p-8 relative">
+        <button
+          onClick={() => onNavigate('landing')}
+          className="absolute top-8 left-8 p-2 hover:bg-white rounded-lg transition-colors group"
+          title="Back to home"
+        >
+          <ArrowLeft size={20} className="text-gray-600 group-hover:text-purple-600" />
+        </button>
         <div className="w-full max-w-md">
           {/* Logo & Welcome */}
           <div className="text-center mb-8">

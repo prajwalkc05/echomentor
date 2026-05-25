@@ -3,6 +3,12 @@ import { motion } from 'framer-motion';
 import type { Slide, ThemeId } from '../../../types/slideai';
 import { getTheme } from '../../../templates/slideai/themes';
 import { SlideBackground } from './SlideBackgrounds';
+import { normalizeSlide } from '../engine/normalizeSlide';
+import { scaledFont } from '../engine/typography';
+import { slidePadding } from '../engine/spacing';
+import { ImageFrame } from '../components/ImageFrame';
+import { QuoteBlock } from '../components/QuoteBlock';
+import { HighlightCard } from '../components/HighlightCard';
 
 interface SlideRendererProps {
   slide: Slide;
@@ -19,51 +25,29 @@ function SlideImage({
   size = 'medium',
   type = 'tech',
   imageUrl,
+  imageAlt,
+  onImageClick,
+  showUploadHint,
 }: {
   prompt?: string;
   theme: ThemeId;
   size?: 'small' | 'medium' | 'large';
   type?: string;
   imageUrl?: string;
+  imageAlt?: string;
+  onImageClick?: () => void;
+  showUploadHint?: boolean;
 }) {
-  const t = getTheme(theme);
-  const isDark = theme !== 'corporate-yellow';
-  const [loaded, setLoaded] = React.useState(false);
-
-  const dims = size === 'large' ? { w: 800, h: 600 } : size === 'medium' ? { w: 600, h: 450 } : { w: 400, h: 300 };
-  const minH = size === 'large' ? 160 : size === 'medium' ? 100 : 60;
-
-  const src = imageUrl || (() => {
-    const query = prompt || type;
-    const encodedPrompt = encodeURIComponent(
-      `professional presentation slide, ${query}, clean minimal high quality, no text`
-    );
-    return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dims.w}&height=${dims.h}&nologo=true&model=flux`;
-  })();
-
   return (
-    <div
-      className="relative overflow-hidden rounded-2xl w-full h-full"
-      style={{
-        border: `1px solid ${t.colors.border}`,
-        boxShadow: isDark ? `0 0 40px ${t.colors.primary}20` : '0 8px 40px rgba(0,0,0,0.1)',
-        minHeight: minH,
-        background: !loaded ? `linear-gradient(135deg, ${t.colors.cardBg}, ${t.colors.primary}20)` : 'transparent',
-      }}
-    >
-      <img
-        src={src}
-        alt={prompt || type}
-        className="w-full h-full object-cover"
-        style={{ display: loaded ? 'block' : 'none' }}
-        onLoad={() => setLoaded(true)}
-        onError={(e) => {
-          (e.target as HTMLImageElement).style.display = 'none';
-        }}
-        width={dims.w}
-        height={dims.h}
-      />
-    </div>
+    <ImageFrame
+      theme={theme}
+      size={size}
+      imageUrl={imageUrl}
+      imagePrompt={prompt || type}
+      imageAlt={imageAlt}
+      onImageClick={onImageClick}
+      showUploadHint={showUploadHint}
+    />
   );
 }
 
@@ -74,11 +58,12 @@ function CoverHeroLayout({ slide, theme, scale = 1, isEditing, onUpdate }: { sli
   const t = getTheme(theme);
   const c = slide.content;
   const isDark = theme !== 'corporate-yellow';
-  const fs = (size: number) => Math.max(size * scale * 0.9, 10);
+  const fs = (role: 'title' | 'subtitle' | 'body' | 'caption') => scaledFont(role, scale);
   const [editingField, setEditingField] = React.useState<string | null>(null);
+  const pad = slidePadding(scale);
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-12" style={{ zIndex: 10, position: 'relative' }}>
+    <div className="absolute inset-0 flex flex-col items-center justify-center text-center" style={{ zIndex: 10, position: 'relative', padding: pad }}>
       {isEditing && (
         <div style={{
           position: 'absolute',
@@ -105,7 +90,7 @@ function CoverHeroLayout({ slide, theme, scale = 1, isEditing, onUpdate }: { sli
                 background: `${t.colors.primary}20`,
                 border: `1px solid ${t.colors.primary}40`,
                 color: t.colors.primary,
-                fontSize: `${fs(10)}px`,
+                fontSize: `${fs('caption')}px`,
                 padding: `${4 * scale}px ${12 * scale}px`,
               }}
             >
@@ -126,7 +111,7 @@ function CoverHeroLayout({ slide, theme, scale = 1, isEditing, onUpdate }: { sli
           className="font-black leading-none mb-4 text-center bg-transparent border-b-2 outline-none w-full"
           style={{
             fontFamily: t.colors.headingFont,
-            fontSize: `${fs(52)}px`,
+            fontSize: `${fs('title')}px`,
             color: t.colors.text,
             borderColor: t.colors.primary,
             lineHeight: 1.1,
@@ -141,7 +126,7 @@ function CoverHeroLayout({ slide, theme, scale = 1, isEditing, onUpdate }: { sli
           className="font-black leading-none mb-4 cursor-pointer hover:opacity-80 transition-opacity"
           style={{
             fontFamily: t.colors.headingFont,
-            fontSize: `${fs(52)}px`,
+            fontSize: `${fs('title')}px`,
             color: t.colors.text,
             textShadow: isDark ? `0 0 40px ${t.colors.primary}40` : 'none',
             lineHeight: 1.1,
@@ -178,7 +163,7 @@ function CoverHeroLayout({ slide, theme, scale = 1, isEditing, onUpdate }: { sli
             className="font-semibold mb-3 text-center bg-white/10 border-b-2 outline-none w-full"
             style={{
               fontFamily: t.colors.bodyFont,
-              fontSize: `${fs(20)}px`,
+              fontSize: `${fs('subtitle')}px`,
               color: isDark ? t.colors.primary : t.colors.secondary,
               borderColor: t.colors.primary,
               marginBottom: `${12 * scale}px`,
@@ -191,7 +176,7 @@ function CoverHeroLayout({ slide, theme, scale = 1, isEditing, onUpdate }: { sli
             className="font-semibold mb-3 cursor-pointer hover:opacity-80 transition-opacity"
             style={{
               fontFamily: t.colors.bodyFont,
-              fontSize: `${fs(20)}px`,
+              fontSize: `${fs('subtitle')}px`,
               color: isDark ? t.colors.primary : t.colors.secondary,
               marginBottom: `${12 * scale}px`,
               padding: isEditing ? '4px 8px' : '0',
@@ -202,6 +187,12 @@ function CoverHeroLayout({ slide, theme, scale = 1, isEditing, onUpdate }: { sli
             {c.subtitle}
           </p>
         )
+      )}
+
+      {c.highlight && (
+        <div style={{ maxWidth: '75%', marginBottom: `${16 * scale}px` }}>
+          <HighlightCard text={c.highlight} theme={theme} scale={scale} />
+        </div>
       )}
 
       {/* Description */}
@@ -216,11 +207,11 @@ function CoverHeroLayout({ slide, theme, scale = 1, isEditing, onUpdate }: { sli
             className="text-center bg-white/10 border-b-2 outline-none resize-none w-full"
             style={{
               fontFamily: t.colors.bodyFont,
-              fontSize: `${fs(15)}px`,
+              fontSize: `${fs('body')}px`,
               color: t.colors.textMuted,
               borderColor: t.colors.primary,
               maxWidth: '65%',
-              lineHeight: 1.6,
+              lineHeight: 1.7,
               marginBottom: `${24 * scale}px`,
               padding: '4px 8px',
             }}
@@ -231,7 +222,7 @@ function CoverHeroLayout({ slide, theme, scale = 1, isEditing, onUpdate }: { sli
             className="cursor-pointer hover:opacity-80 transition-opacity"
             style={{
               fontFamily: t.colors.bodyFont,
-              fontSize: `${fs(15)}px`,
+              fontSize: `${fs('body')}px`,
               color: t.colors.textMuted,
               maxWidth: '65%',
               lineHeight: 1.6,
@@ -260,7 +251,7 @@ function CoverHeroLayout({ slide, theme, scale = 1, isEditing, onUpdate }: { sli
               borderColor: t.colors.primary,
               padding: `${10 * scale}px ${28 * scale}px`,
               color: '#fff',
-              fontSize: `${fs(13)}px`,
+              fontSize: `${fs('caption')}px`,
             }}
           />
         ) : (
@@ -271,7 +262,7 @@ function CoverHeroLayout({ slide, theme, scale = 1, isEditing, onUpdate }: { sli
               background: `linear-gradient(135deg, ${t.colors.primary}, ${t.colors.secondary})`,
               padding: `${10 * scale}px ${28 * scale}px`,
               color: '#fff',
-              fontSize: `${fs(13)}px`,
+              fontSize: `${fs('caption')}px`,
               boxShadow: `0 0 30px ${t.colors.primary}40`,
             }}
           >
@@ -292,7 +283,7 @@ function SplitLeftTextLayout({ slide, theme, scale = 1, isEditing, onUpdate }: {
   const [editingField, setEditingField] = React.useState<string | null>(null);
 
   return (
-    <div className="absolute inset-0 flex" style={{ zIndex: 10, padding: `${40 * scale}px` }}>
+    <div className="absolute inset-0 flex" style={{ zIndex: 10, padding: slidePadding(scale), gap: `${32 * scale}px` }}>
       {/* Left: Text */}
       <div
         className="flex flex-col justify-center"
@@ -339,6 +330,12 @@ function SplitLeftTextLayout({ slide, theme, scale = 1, isEditing, onUpdate }: {
           >
             {c.title}
           </h2>
+        )}
+
+        {c.highlight && (
+          <div style={{ marginBottom: `${12 * scale}px` }}>
+            <HighlightCard text={c.highlight} theme={theme} scale={scale} />
+          </div>
         )}
 
         {c.description && (
@@ -448,7 +445,7 @@ function SplitLeftTextLayout({ slide, theme, scale = 1, isEditing, onUpdate }: {
             boxShadow: isDark ? `0 0 40px ${t.colors.primary}20` : '0 8px 40px rgba(0,0,0,0.1)',
           }}
         >
-          <SlideImage theme={theme} size="large" type="tech" imageUrl={c.imageUrl} prompt={c.title} />
+          <SlideImage theme={theme} size="large" type="tech" imageUrl={c.imageUrl} prompt={c.imagePrompt || c.title} imageAlt={c.imageAlt} />
         </div>
       </div>
     </div>
@@ -474,7 +471,7 @@ function SplitRightTextLayout({ slide, theme, scale = 1, isEditing, onUpdate }: 
             boxShadow: isDark ? `0 0 40px ${t.colors.primary}20` : '0 8px 40px rgba(0,0,0,0.1)',
           }}
         >
-          <SlideImage theme={theme} size="large" type="business" imageUrl={c.imageUrl} prompt={c.title} />
+          <SlideImage theme={theme} size="large" type="business" imageUrl={c.imageUrl} prompt={c.imagePrompt || c.title} imageAlt={c.imageAlt} />
         </div>
       </div>
 
@@ -816,7 +813,7 @@ function BulletsImageLayout({ slide, theme, scale = 1 }: { slide: Slide; theme: 
       <div className="flex flex-1 gap-6" style={{ gap: `${24 * scale}px` }}>
         {/* Bullets */}
         <div className="flex-1 flex flex-col gap-2" style={{ gap: `${10 * scale}px` }}>
-          {c.bullets?.map((b, i) => (
+          {(c.bullets?.length ? c.bullets : c.description ? [c.description] : ['Add key points in the editor']).map((b, i) => (
             <div
               key={i}
               className="rounded-xl flex items-start gap-3"
@@ -860,7 +857,7 @@ function BulletsImageLayout({ slide, theme, scale = 1 }: { slide: Slide; theme: 
             className="w-full h-full"
             style={{ border: `1px solid ${t.colors.border}`, borderRadius: `${16 * scale}px`, overflow: 'hidden', boxShadow: isDark ? `0 0 30px ${t.colors.primary}20` : '0 8px 30px rgba(0,0,0,0.1)' }}
           >
-          <SlideImage theme={theme} size="large" type="cyber" imageUrl={c.imageUrl} prompt={c.title} />
+          <SlideImage theme={theme} size="large" type="cyber" imageUrl={c.imageUrl} prompt={c.imagePrompt || c.title} imageAlt={c.imageAlt} />
           </div>
         </div>
       </div>
@@ -1163,10 +1160,25 @@ function TeamGridLayout({ slide, theme, scale = 1 }: { slide: Slide; theme: Them
 }
 
 // ─── COMPARISON ───────────────────────────────────────────────────────────────
+function QuoteLayout({ slide, theme, scale = 1 }: { slide: Slide; theme: ThemeId; scale?: number }) {
+  const c = slide.content;
+  return (
+    <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 10, padding: slidePadding(scale) }}>
+      <QuoteBlock
+        quote={c.quote || c.description || ''}
+        author={c.author}
+        title={c.title}
+        theme={theme}
+        scale={scale}
+      />
+    </div>
+  );
+}
+
 function ComparisonLayout({ slide, theme, scale = 1 }: { slide: Slide; theme: ThemeId; scale?: number }) {
   const t = getTheme(theme);
   const c = slide.content;
-  const comparison = (c as any).comparison;
+  const comparison = c.comparison;
   const fs = (size: number) => Math.max(size * scale * 0.9, 8);
 
   if (!comparison) return null;
@@ -1442,8 +1454,9 @@ export function SlideRenderer({
   animate = false,
 }: SlideRendererProps) {
   const resolvedTheme = slide.theme || theme;
+  const normalizedSlide = normalizeSlide({ ...slide, theme: resolvedTheme });
 
-  const layoutProps = { slide, theme: resolvedTheme, scale, isEditing, onUpdate };
+  const layoutProps = { slide: normalizedSlide, theme: resolvedTheme, scale, isEditing, onUpdate };
 
   const renderLayout = () => {
     switch (slide.layout) {
@@ -1461,7 +1474,7 @@ export function SlideRenderer({
       case 'architecture': return <ArchitectureLayout {...layoutProps} />;
       case 'thank-you': return <ThankYouLayout {...layoutProps} />;
       case 'full-image': return <CoverHeroLayout {...layoutProps} />;
-      case 'quote': return <CenterTitleLayout {...layoutProps} />;
+      case 'quote': return <QuoteLayout {...layoutProps} />;
       case 'methodology': return <TimelineLayout {...layoutProps} />;
       default: return <CenterTitleLayout {...layoutProps} />;
     }

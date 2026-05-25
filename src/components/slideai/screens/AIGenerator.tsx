@@ -7,6 +7,13 @@ import { themes } from '../../../templates/slideai/themes';
 import type { ThemeId, Presentation as PresentationType } from '../../../types/slideai';
 import toast from 'react-hot-toast';
 import { pptService } from '../../../services/api.service';
+import {
+  getRecentPresentations,
+  loadPresentationById,
+  storedToPresentation,
+  deletePresentationFromStorage,
+  clearAllPresentations,
+} from '../../../services/slideai/presentationPersistence';
 
 const TONES = ['professional', 'creative', 'academic', 'startup', 'minimal'] as const;
 const AUDIENCES = ['executive', 'technical', 'academic', 'general', 'students'] as const;
@@ -28,7 +35,7 @@ interface SelectProps {
   dark?: boolean;
 }
 
-function SelectField({ value, onChange, options, label, icon, dark = true }: SelectProps) {
+function SelectField({ value, onChange, options, label, icon }: SelectProps) {
   return (
     <div>
       <label className="flex items-center gap-2 mb-2" style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600 }}>
@@ -153,11 +160,12 @@ function GenerationLoader({ progress, step }: { progress: number; step: string }
 }
 
 export default function AIGenerator() {
-  const { setCurrentScreen, generationConfig, setGenerationConfig, setCurrentPresentation, addPresentation, setGenerating, setGenerationProgress, isGenerating, generationProgress, generationStep, apiKey } = usePresentationStore();
+  const { setCurrentScreen, generationConfig, setGenerationConfig, setCurrentPresentation, addPresentation, setGenerating, setGenerationProgress, isGenerating, generationProgress, generationStep } = usePresentationStore();
 
   const [topic, setTopic] = useState(generationConfig.topic || '');
   const [description, setDescription] = useState(generationConfig.description || '');
   const [slideContent, setSlideContent] = useState('');
+  const [generationMode, setGenerationMode] = useState<'auto' | 'manual'>('auto');
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -171,33 +179,74 @@ export default function AIGenerator() {
     try {
       setLoadingHistory(true);
       setHistoryError(null);
-      const response = await pptService.getHistory();
-      // Normalize response — backend may return array directly or { data: [] }
-      let items: any[] = [];
-      if (Array.isArray(response)) {
-        items = response;
-      } else if (response && Array.isArray(response.data)) {
-        items = response.data;
-      } else if (response && Array.isArray(response.history)) {
-        items = response.history;
+
+      const localItems = getRecentPresentations(15).map((p) => ({
+        _id: p.id,
+        topic: p.title,
+        description: p.thumbnail,
+        slideCount: p.slideCount,
+        theme: p.template,
+        updatedAt: p.updatedAt,
+        isLocal: true,
+        hasSlides: true,
+      }));
+
+      let backendItems: any[] = [];
+      try {
+        const response = await pptService.getHistory();
+        if (Array.isArray(response)) {
+          backendItems = response;
+        } else if (response && Array.isArray(response.data)) {
+          backendItems = response.data;
+        } else if (response && Array.isArray(response.history)) {
+          backendItems = response.history;
+        }
+      } catch {
+        // backend optional — local history still works
       }
-      // Deduplicate by _id
-      const seen = new Set();
-      items = items.filter((item) => {
-        if (seen.has(item._id)) return false;
-        seen.add(item._id);
+
+      const seen = new Set<string>();
+      const merged = [...localItems, ...backendItems].filter((item) => {
+        const id = item._id || item.id;
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
         return true;
       });
-      setHistory(items);
+
+      merged.sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.createdAt || 0).getTime() -
+          new Date(a.updatedAt || a.createdAt || 0).getTime()
+      );
+
+      setHistory(merged);
     } catch (error: any) {
       setHistoryError(error.message || 'Failed to load history');
-      setHistory([]);
+      setHistory(getRecentPresentations(10).map((p) => ({
+        _id: p.id,
+        topic: p.title,
+        slideCount: p.slideCount,
+        isLocal: true,
+        hasSlides: true,
+      })));
     } finally {
       setLoadingHistory(false);
     }
   };
 
   const loadFromHistory = async (item: any) => {
+    const id = item._id || item.id;
+    const stored = id ? loadPresentationById(id) : null;
+
+    if (stored?.slides?.length) {
+      const presentation = storedToPresentation(stored);
+      addPresentation(presentation);
+      setCurrentPresentation(presentation);
+      setCurrentScreen('editor');
+      toast.success('Presentation restored!', { icon: '📂' });
+      return;
+    }
+
     const config = {
       topic: item.topic || '',
       description: item.description || '',
@@ -212,15 +261,15 @@ export default function AIGenerator() {
 
     setGenerationConfig(config);
     setGenerating(true);
-    setGenerationProgress(0, 'Restoring your presentation...');
+    setGenerationProgress(0, 'Regenerating presentation (no saved slides)...');
 
     try {
-      const slides = await generateWithAI(config, apiKey, (p, step) => {
+      const slides = await generateWithAI(config, (p, step) => {
         setGenerationProgress(p, step);
       });
 
       const presentation: PresentationType = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: id || Math.random().toString(36).substr(2, 9),
         title: config.topic,
         description: config.description,
         theme: config.theme,
@@ -233,7 +282,7 @@ export default function AIGenerator() {
       setCurrentPresentation(presentation);
       setGenerating(false);
       setCurrentScreen('editor');
-      toast.success('Presentation restored!', { icon: '📂' });
+      toast.success('Presentation regenerated!', { icon: '📂' });
     } catch {
       setGenerating(false);
       toast.error('Failed to restore presentation.');
@@ -243,10 +292,11 @@ export default function AIGenerator() {
   const clearHistory = async () => {
     setHistory([]);
     setHistoryCleared(true);
+    clearAllPresentations();
     try {
       await pptService.clearHistory();
     } catch {
-      // backend endpoint may not exist, local clear is enough
+      // backend optional
     }
     toast.success('History cleared!');
   };
@@ -254,6 +304,7 @@ export default function AIGenerator() {
   const deleteHistoryItem = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setHistory((prev) => prev.filter((item) => item._id !== id));
+    deletePresentationFromStorage(id);
     try {
       await pptService.deleteOne(id);
     } catch {
@@ -267,7 +318,7 @@ export default function AIGenerator() {
       return;
     }
 
-    if (!slideContent.trim()) {
+    if (generationMode === 'manual' && !slideContent.trim()) {
       toast.error('Please provide slide content to generate the presentation');
       return;
     }
@@ -277,13 +328,13 @@ export default function AIGenerator() {
         ...generationConfig, 
         topic: topic.trim(), 
         description: description.trim(),
-        slideContent: slideContent.trim()
+        slideContent: generationMode === 'auto' ? '' : slideContent.trim()
       };
       setGenerationConfig(config);
       setGenerating(true);
       setGenerationProgress(0, 'Starting AI generation...');
 
-      const slides = await generateWithAI(config, apiKey, (p, step) => {
+      const slides = await generateWithAI(config, (p, step) => {
         setGenerationProgress(p, step);
       });
 
@@ -334,7 +385,7 @@ export default function AIGenerator() {
             AI Presentation Generator
           </h1>
           <p style={{ color: '#9ca3af', fontSize: 15 }}>
-            Create professional presentations with AI - just provide your content structure
+            Create professional presentations with AI - just provide your topic name or content outline
           </p>
         </motion.div>
 
@@ -342,6 +393,36 @@ export default function AIGenerator() {
           {/* Main Form - Left Side */}
           <div className="lg:col-span-2 space-y-6">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              
+              {/* Generation Mode Toggle */}
+              <div
+                className="rounded-2xl p-4 mb-6 flex gap-3"
+                style={{ background: '#1a1a2e', border: '1px solid rgba(124,58,237,0.2)' }}
+              >
+                <button
+                  onClick={() => setGenerationMode('auto')}
+                  className="flex-1 rounded-xl py-3 text-sm font-bold transition-all flex items-center justify-center gap-2"
+                  style={{
+                    background: generationMode === 'auto' ? 'linear-gradient(135deg, #7c3aed, #a78bfa)' : 'rgba(255,255,255,0.03)',
+                    color: '#fff',
+                    border: generationMode === 'auto' ? '1px solid transparent' : '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Sparkles size={16} /> AI Auto-Generate
+                </button>
+                <button
+                  onClick={() => setGenerationMode('manual')}
+                  className="flex-1 rounded-xl py-3 text-sm font-bold transition-all flex items-center justify-center gap-2"
+                  style={{
+                    background: generationMode === 'manual' ? 'linear-gradient(135deg, #7c3aed, #a78bfa)' : 'rgba(255,255,255,0.03)',
+                    color: '#fff',
+                    border: generationMode === 'manual' ? '1px solid transparent' : '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Layers size={16} /> Manual Outline
+                </button>
+              </div>
+
               {/* Topic & Content */}
               <div
                 className="rounded-2xl p-6 mb-6"
@@ -355,7 +436,7 @@ export default function AIGenerator() {
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder="e.g. Introduction to Artificial Intelligence"
-                  className="w-full rounded-xl text-white placeholder-gray-500 font-medium text-base"
+                  className="w-full rounded-xl text-white placeholder-gray-500 font-medium text-base mb-5"
                   style={{
                     background: 'rgba(255,255,255,0.05)',
                     border: '1px solid rgba(124,58,237,0.3)',
@@ -366,36 +447,53 @@ export default function AIGenerator() {
                   onBlur={(e) => { e.target.style.border = '1px solid rgba(124,58,237,0.3)'; e.target.style.boxShadow = 'none'; }}
                 />
 
-                <label className="flex items-center gap-2 mt-5 mb-3" style={{ color: '#7c3aed', fontSize: 14, fontWeight: 700 }}>
-                  <Layers size={16} /> Slide Content *
-                </label>
-                <textarea
-                  value={slideContent}
-                  onChange={(e) => setSlideContent(e.target.value)}
-                  placeholder="Slide 1 — Introduction&#10;- Welcome message&#10;- Overview of topic&#10;&#10;Slide 2 — Main Content&#10;- Key point 1&#10;- Key point 2&#10;&#10;Slide 3 — Conclusion&#10;- Summary&#10;- Call to action"
-                  rows={14}
-                  className="w-full rounded-xl text-white placeholder-gray-500 font-medium text-sm resize-none"
-                  style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: `2px solid ${slideContent.trim() ? 'rgba(124,58,237,0.4)' : 'rgba(124,58,237,0.2)'}`,
-                    padding: '14px 18px',
-                    outline: 'none',
-                    lineHeight: 1.6,
-                  }}
-                  onFocus={(e) => { e.target.style.border = '2px solid rgba(124,58,237,0.6)'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.1)'; }}
-                  onBlur={(e) => { e.target.style.border = `2px solid ${slideContent.trim() ? 'rgba(124,58,237,0.4)' : 'rgba(124,58,237,0.2)'}`;  e.target.style.boxShadow = 'none'; }}
-                />
-                <p style={{ color: 'rgba(156,163,175,0.8)', fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
-                  💡 Structure your content with "Slide X — Title" format and bullet points
-                </p>
+                {generationMode === 'manual' ? (
+                  <>
+                    <label className="flex items-center gap-2 mt-5 mb-3" style={{ color: '#7c3aed', fontSize: 14, fontWeight: 700 }}>
+                      <Layers size={16} /> Slide Content Outline *
+                    </label>
+                    <textarea
+                      value={slideContent}
+                      onChange={(e) => setSlideContent(e.target.value)}
+                      placeholder="Slide 1 — Introduction&#10;- Welcome message&#10;- Overview of topic&#10;&#10;Slide 2 — Main Content&#10;- Key point 1&#10;- Key point 2&#10;&#10;Slide 3 — Conclusion&#10;- Summary&#10;- Call to action"
+                      rows={14}
+                      className="w-full rounded-xl text-white placeholder-gray-500 font-medium text-sm resize-none"
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: `2px solid ${slideContent.trim() ? 'rgba(124,58,237,0.4)' : 'rgba(124,58,237,0.2)'}`,
+                        padding: '14px 18px',
+                        outline: 'none',
+                        lineHeight: 1.6,
+                      }}
+                      onFocus={(e) => { e.target.style.border = '2px solid rgba(124,58,237,0.6)'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.1)'; }}
+                      onBlur={(e) => { e.target.style.border = `2px solid ${slideContent.trim() ? 'rgba(124,58,237,0.4)' : 'rgba(124,58,237,0.2)'}`;  e.target.style.boxShadow = 'none'; }}
+                    />
+                    <p style={{ color: 'rgba(156,163,175,0.8)', fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
+                      💡 Structure your content with "Slide X — Title" format and bullet points
+                    </p>
+                  </>
+                ) : (
+                  <div
+                    className="rounded-xl p-5 mb-5 text-center border"
+                    style={{ background: 'rgba(124,58,237,0.05)', borderColor: 'rgba(124,58,237,0.15)' }}
+                  >
+                    <Sparkles size={24} className="mx-auto mb-3 text-purple-400 animate-pulse" />
+                    <p style={{ color: '#fff', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+                      AI Auto-Generate Presentation
+                    </p>
+                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 1.6, maxWidth: '85%', margin: '0 auto' }}>
+                      Only the presentation topic is required! The AI will automatically structure your slides, write professional outlines, and generate all slide text content for you.
+                    </p>
+                  </div>
+                )}
 
                 <label className="flex items-center gap-2 mt-5 mb-3" style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600 }}>
-                  Additional Notes (optional)
+                  Additional Notes & Instructions (optional)
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Any additional context or requirements..."
+                  placeholder="Any specific instructions or requirements..."
                   rows={2}
                   className="w-full rounded-xl text-white placeholder-gray-500 font-medium text-sm resize-none"
                   style={{
@@ -414,7 +512,7 @@ export default function AIGenerator() {
                 style={{ background: '#1a1a2e', border: '1px solid rgba(124,58,237,0.2)' }}
               >
                 <h3 className="flex items-center gap-2 mb-5" style={{ color: '#fff', fontSize: 16, fontWeight: 700 }}>
-                  <Settings size={18} color="#7c3aed" /> Presentation Settings
+                  <Settings size={18} color="#7c3aed" /> Presentation Layout Settings
                 </h3>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -461,6 +559,20 @@ export default function AIGenerator() {
                       </div>
                     </div>
                   </div>
+                  <label
+                    className="col-span-2 flex items-center gap-3 rounded-xl px-4 py-3 cursor-pointer"
+                    style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={generationConfig.includeImages}
+                      onChange={(e) => setGenerationConfig({ includeImages: e.target.checked })}
+                      style={{ accentColor: '#7c3aed', width: 16, height: 16 }}
+                    />
+                    <span style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
+                      Include topic-related visuals on each slide
+                    </span>
+                  </label>
                 </div>
               </div>
 
@@ -625,6 +737,9 @@ export default function AIGenerator() {
                             <div className="flex-1 min-w-0">
                               <p style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 4 }} className="truncate pr-6">
                                 {item.topic}
+                                {item.isLocal && (
+                                  <span style={{ marginLeft: 6, fontSize: 9, color: '#10B981', fontWeight: 700 }}>SAVED</span>
+                                )}
                               </p>
                               {item.description && (
                                 <p style={{ color: 'rgba(156,163,175,0.8)', fontSize: 12, marginBottom: 6 }} className="line-clamp-2">

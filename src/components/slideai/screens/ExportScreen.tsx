@@ -79,6 +79,7 @@ export default function ExportScreen() {
 
           const accentColor = themeColors.primary.replace('#', '').replace(/^#/, '');
           const textColor = isDark ? 'FFFFFF' : '1a1a2e';
+          const mutedTextColor = isDark ? 'A0A0A0' : '666666';
 
           // Top accent bar
           pptSlide.addShape(pptx.ShapeType.rect, {
@@ -124,7 +125,7 @@ export default function ExportScreen() {
               w: isCenter ? 7 : 5.5,
               h: 1.4,
               fontSize: 13,
-              color: textColor + (isDark ? 'BB' : '99'),
+              color: mutedTextColor,
               align: isCenter ? 'center' : 'left',
               fontFace: 'Calibri',
               paraSpaceAfter: 4,
@@ -150,7 +151,7 @@ export default function ExportScreen() {
               const colW = 9 / cols;
               const x = 0.5 + si * colW;
               pptSlide.addText(stat.value, { x, y: 2, w: colW, h: 1, fontSize: 32, bold: true, color: (stat.color || themeColors.primary).replace('#', ''), align: 'center', fontFace: 'Calibri' });
-              pptSlide.addText(stat.label, { x, y: 3.1, w: colW, h: 0.5, fontSize: 12, color: textColor + 'AA', align: 'center', fontFace: 'Calibri' });
+              pptSlide.addText(stat.label, { x, y: 3.1, w: colW, h: 0.5, fontSize: 12, color: mutedTextColor, align: 'center', fontFace: 'Calibri' });
             });
           }
 
@@ -162,7 +163,7 @@ export default function ExportScreen() {
               const x = 0.5 + (ci % cols) * colW;
               const y = 2.2 + Math.floor(ci / cols) * 1.6;
               pptSlide.addText(`${card.icon || '•'} ${card.title}`, { x, y, w: colW - 0.1, h: 0.4, fontSize: 13, bold: true, color: accentColor, fontFace: 'Calibri' });
-              pptSlide.addText(card.description, { x, y: y + 0.45, w: colW - 0.1, h: 0.9, fontSize: 11, color: textColor + 'AA', fontFace: 'Calibri' });
+              pptSlide.addText(card.description, { x, y: y + 0.45, w: colW - 0.1, h: 0.9, fontSize: 11, color: mutedTextColor, fontFace: 'Calibri' });
             });
           }
 
@@ -173,7 +174,7 @@ export default function ExportScreen() {
               pptSlide.addShape(pptx.ShapeType.ellipse, { x: 0.5, y, w: 0.35, h: 0.35, fill: { type: 'solid', color: accentColor } });
               pptSlide.addText(item.step, { x: 0.5, y, w: 0.35, h: 0.35, fontSize: 10, bold: true, color: 'FFFFFF', align: 'center' });
               pptSlide.addText(item.title, { x: 1, y, w: 3.5, h: 0.35, fontSize: 12, bold: true, color: textColor, fontFace: 'Calibri' });
-              pptSlide.addText(item.description, { x: 4.6, y, w: 5, h: 0.35, fontSize: 11, color: textColor + 'AA', fontFace: 'Calibri' });
+              pptSlide.addText(item.description, { x: 4.6, y, w: 5, h: 0.35, fontSize: 11, color: mutedTextColor, fontFace: 'Calibri' });
             });
           }
 
@@ -185,7 +186,7 @@ export default function ExportScreen() {
               const x = 0.5 + (mi % cols) * colW;
               const y = 2 + Math.floor(mi / cols) * 1.5;
               pptSlide.addText(member.name, { x, y, w: colW - 0.1, h: 0.5, fontSize: 14, bold: true, color: textColor, align: 'center', fontFace: 'Calibri' });
-              pptSlide.addText(member.role, { x, y: y + 0.55, w: colW - 0.1, h: 0.5, fontSize: 11, color: textColor + 'AA', align: 'center', fontFace: 'Calibri' });
+              pptSlide.addText(member.role, { x, y: y + 0.55, w: colW - 0.1, h: 0.5, fontSize: 11, color: mutedTextColor, align: 'center', fontFace: 'Calibri' });
             });
           }
 

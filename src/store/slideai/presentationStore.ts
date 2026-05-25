@@ -1,63 +1,72 @@
 import { create } from 'zustand';
 import type { Presentation, Slide, ThemeId, AppScreen, GenerationConfig } from '../../types/slideai';
+import {
+  savePresentationToStorage,
+  storedToPresentation,
+} from '../../services/slideai/presentationPersistence';
 
 const MAX_HISTORY = 50;
+const STORAGE_KEY = 'echomentor_slideai_presentations';
+
+function loadPresentationsFromLocal(): Presentation[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(storedToPresentation);
+  } catch {
+    return [];
+  }
+}
 
 interface PresentationStore {
-  // App state
   currentScreen: AppScreen;
   setCurrentScreen: (screen: AppScreen) => void;
 
-  // Presentations
   presentations: Presentation[];
   currentPresentation: Presentation | null;
   setCurrentPresentation: (p: Presentation | null) => void;
   addPresentation: (p: Presentation) => void;
   updatePresentation: (id: string, updates: Partial<Presentation>) => void;
+  savePresentation: () => void;
+  loadPresentationsFromStorage: () => void;
 
-  // Editor state
   selectedSlideIndex: number;
   setSelectedSlideIndex: (i: number) => void;
   editingSlide: Slide | null;
   setEditingSlide: (s: Slide | null) => void;
 
-  // Slide operations
-  updateSlide: (slideId: string, updates: Partial<Slide>) => void;
+  updateSlide: (slideId: string, updates: Partial<Slide>, options?: { skipUndo?: boolean }) => void;
   addSlide: (slide: Slide) => void;
   removeSlide: (slideId: string) => void;
   reorderSlides: (slides: Slide[]) => void;
 
-  // Undo / Redo
   undoStack: Slide[][];
   redoStack: Slide[][];
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  _pushUndoSnapshot: (slides: Slide[]) => void;
+  pushUndoSnapshot: () => void;
 
-  // Generation
   isGenerating: boolean;
   generationProgress: number;
   generationStep: string;
   setGenerating: (v: boolean) => void;
   setGenerationProgress: (v: number, step?: string) => void;
 
-  // Generation config
   generationConfig: GenerationConfig;
   setGenerationConfig: (config: Partial<GenerationConfig>) => void;
 
-  // Present mode
   isPresentMode: boolean;
   presentSlideIndex: number;
   setPresentMode: (v: boolean) => void;
   setPresentSlideIndex: (i: number) => void;
 
-  // Theme
   currentTheme: ThemeId;
   setCurrentTheme: (t: ThemeId) => void;
 
-  // API Key
   apiKey: string;
   setApiKey: (key: string) => void;
 }
@@ -73,37 +82,78 @@ const defaultGenerationConfig: GenerationConfig = {
   includeImages: true,
 };
 
+function syncPresentationList(
+  presentations: Presentation[],
+  updated: Presentation
+): Presentation[] {
+  const exists = presentations.some((p) => p.id === updated.id);
+  if (exists) {
+    return presentations.map((p) => (p.id === updated.id ? updated : p));
+  }
+  return [updated, ...presentations];
+}
+
 export const usePresentationStore = create<PresentationStore>((set, get) => ({
   currentScreen: 'dashboard',
   setCurrentScreen: (screen) => set({ currentScreen: screen }),
 
-  presentations: [],
+  presentations: loadPresentationsFromLocal(),
   currentPresentation: null,
-  setCurrentPresentation: (p) => set({ currentPresentation: p, selectedSlideIndex: 0, undoStack: [], redoStack: [] }),
-  addPresentation: (p) => set((s) => ({ presentations: [p, ...s.presentations] })),
-  updatePresentation: (id, updates) =>
+  setCurrentPresentation: (p) =>
+    set({ currentPresentation: p, selectedSlideIndex: 0, undoStack: [], redoStack: [] }),
+
+  addPresentation: (p) => {
+    savePresentationToStorage(p);
     set((s) => ({
-      presentations: s.presentations.map((p) => (p.id === id ? { ...p, ...updates } : p)),
-      currentPresentation:
+      presentations: [p, ...s.presentations.filter((x) => x.id !== p.id)].slice(0, 30),
+    }));
+  },
+
+  updatePresentation: (id, updates) =>
+    set((s) => {
+      const next =
         s.currentPresentation?.id === id
-          ? { ...s.currentPresentation, ...updates }
-          : s.currentPresentation,
-    })),
+          ? { ...s.currentPresentation, ...updates, updatedAt: new Date() }
+          : s.currentPresentation;
+      const presentations = s.presentations.map((p) =>
+        p.id === id ? { ...p, ...updates, updatedAt: new Date() } : p
+      );
+      if (next) savePresentationToStorage(next);
+      return {
+        presentations,
+        currentPresentation: next,
+      };
+    }),
+
+  savePresentation: () => {
+    const { currentPresentation } = get();
+    if (!currentPresentation) return;
+    const updated = { ...currentPresentation, updatedAt: new Date() };
+    savePresentationToStorage(updated);
+    set((s) => ({
+      currentPresentation: updated,
+      presentations: syncPresentationList(s.presentations, updated),
+    }));
+  },
+
+  loadPresentationsFromStorage: () => {
+    set({ presentations: loadPresentationsFromLocal() });
+  },
 
   selectedSlideIndex: 0,
   setSelectedSlideIndex: (i) => set({ selectedSlideIndex: i }),
   editingSlide: null,
   setEditingSlide: (s) => set({ editingSlide: s }),
 
-  // Undo / Redo
   undoStack: [],
   redoStack: [],
   canUndo: false,
   canRedo: false,
 
-  _pushUndoSnapshot: (slides) =>
+  pushUndoSnapshot: () =>
     set((s) => {
-      const undoStack = [...s.undoStack, slides].slice(-MAX_HISTORY);
+      if (!s.currentPresentation) return {};
+      const undoStack = [...s.undoStack, s.currentPresentation.slides].slice(-MAX_HISTORY);
       return { undoStack, redoStack: [], canUndo: true, canRedo: false };
     }),
 
@@ -114,13 +164,14 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       const slides = undoStack.pop()!;
       const redoStack = [...s.redoStack, s.currentPresentation.slides].slice(-MAX_HISTORY);
       const updatedPresentation = { ...s.currentPresentation, slides };
+      savePresentationToStorage(updatedPresentation);
       return {
         undoStack,
         redoStack,
         canUndo: undoStack.length > 0,
         canRedo: true,
         currentPresentation: updatedPresentation,
-        presentations: s.presentations.map((p) => p.id === updatedPresentation.id ? updatedPresentation : p),
+        presentations: syncPresentationList(s.presentations, updatedPresentation),
       };
     }),
 
@@ -131,34 +182,35 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       const slides = redoStack.pop()!;
       const undoStack = [...s.undoStack, s.currentPresentation.slides].slice(-MAX_HISTORY);
       const updatedPresentation = { ...s.currentPresentation, slides };
+      savePresentationToStorage(updatedPresentation);
       return {
         undoStack,
         redoStack,
         canUndo: true,
         canRedo: redoStack.length > 0,
         currentPresentation: updatedPresentation,
-        presentations: s.presentations.map((p) => p.id === updatedPresentation.id ? updatedPresentation : p),
+        presentations: syncPresentationList(s.presentations, updatedPresentation),
       };
     }),
 
-  updateSlide: (slideId, updates) =>
+  updateSlide: (slideId, updates, options) =>
     set((s) => {
       if (!s.currentPresentation) return {};
-      const undoStack = [...s.undoStack, s.currentPresentation.slides].slice(-MAX_HISTORY);
       const slides = s.currentPresentation.slides.map((sl) =>
         sl.id === slideId ? { ...sl, ...updates } : sl
       );
-      const updatedPresentation = { ...s.currentPresentation, slides };
-      return {
-        undoStack,
-        redoStack: [],
-        canUndo: true,
-        canRedo: false,
+      const updatedPresentation = { ...s.currentPresentation, slides, updatedAt: new Date() };
+      const patch: Partial<PresentationStore> = {
         currentPresentation: updatedPresentation,
-        presentations: s.presentations.map((p) =>
-          p.id === updatedPresentation.id ? updatedPresentation : p
-        ),
+        presentations: syncPresentationList(s.presentations, updatedPresentation),
       };
+      if (!options?.skipUndo) {
+        patch.undoStack = [...s.undoStack, s.currentPresentation.slides].slice(-MAX_HISTORY);
+        patch.redoStack = [];
+        patch.canUndo = true;
+        patch.canRedo = false;
+      }
+      return patch;
     }),
 
   addSlide: (slide) =>
@@ -173,6 +225,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         canUndo: true,
         canRedo: false,
         currentPresentation: updatedPresentation,
+        presentations: syncPresentationList(s.presentations, updatedPresentation),
         selectedSlideIndex: slides.length - 1,
       };
     }),
@@ -189,6 +242,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         canUndo: true,
         canRedo: false,
         currentPresentation: updatedPresentation,
+        presentations: syncPresentationList(s.presentations, updatedPresentation),
         selectedSlideIndex: Math.max(0, s.selectedSlideIndex - 1),
       };
     }),
@@ -197,12 +251,14 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     set((s) => {
       if (!s.currentPresentation) return {};
       const undoStack = [...s.undoStack, s.currentPresentation.slides].slice(-MAX_HISTORY);
+      const updatedPresentation = { ...s.currentPresentation, slides };
       return {
         undoStack,
         redoStack: [],
         canUndo: true,
         canRedo: false,
-        currentPresentation: { ...s.currentPresentation, slides },
+        currentPresentation: updatedPresentation,
+        presentations: syncPresentationList(s.presentations, updatedPresentation),
       };
     }),
 

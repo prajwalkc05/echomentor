@@ -18,6 +18,7 @@ import Settings from './pages/Settings';
 import StartupGuide from './pages/StartupGuide';
 import HelpSupport from './pages/HelpSupport';
 import Onboarding from './pages/Onboarding';
+import CourseOnboarding from './courses/CourseOnboarding';
 
 const PROTECTED_PAGES: Page[] = [
   'dashboard', 'ai-chat', 'mood-tracker', 'study-planner',
@@ -29,6 +30,8 @@ export default function App() {
   const { user, isLoggedIn } = useUser();
   const [currentPage, setCurrentPage] = useState<Page>('landing');
   const [aiToolsOpen, setAiToolsOpen] = useState(false);
+  const [showCourseOnboarding, setShowCourseOnboarding] = useState(false);
+  const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
 
   useEffect(() => {
     if (user.darkMode) {
@@ -42,9 +45,19 @@ export default function App() {
     document.documentElement.classList.add('dark');
   }, []);
 
+  // Check if user needs course onboarding only once after login
+  useEffect(() => {
+    if (isLoggedIn && !hasCheckedOnboarding) {
+      const userProfile = (user as any).profile;
+      if (userProfile && !userProfile.courseOnboardingCompleted) {
+        setShowCourseOnboarding(true);
+      }
+      setHasCheckedOnboarding(true);
+    }
+  }, [isLoggedIn, hasCheckedOnboarding, user]);
+
   const navigate = (page: Page) => {
     // Block access to protected pages if not logged in
-    // onboarding is allowed right after signup even before isLoggedIn state settles
     if (PROTECTED_PAGES.includes(page) && !isLoggedIn) {
       setCurrentPage('login');
       return;
@@ -54,6 +67,21 @@ export default function App() {
       setAiToolsOpen(true);
     }
   };
+
+  if (showCourseOnboarding) {
+    return (
+      <CourseOnboarding
+        onComplete={() => {
+          setShowCourseOnboarding(false);
+          setCurrentPage('dashboard');
+        }}
+        onSkip={() => {
+          setShowCourseOnboarding(false);
+          setCurrentPage('dashboard');
+        }}
+      />
+    );
+  }
 
   if (currentPage === 'landing') return <LandingPage onNavigate={navigate} />;
   if (currentPage === 'signup') return <SignupPage onNavigate={navigate} />;

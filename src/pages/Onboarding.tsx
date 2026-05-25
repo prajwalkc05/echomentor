@@ -4,6 +4,7 @@ import { Page } from '../types';
 import { useUser } from '../context/UserContext';
 import { userService } from '../services/api.service';
 import { storage } from '../utils/storage';
+import CourseOnboarding from '../courses/CourseOnboarding';
 
 interface OnboardingProps {
   onNavigate: (page: Page) => void;
@@ -29,6 +30,7 @@ export default function Onboarding({ onNavigate }: OnboardingProps) {
   const [skills, setSkills] = useState<string[]>([]);
   const [learningStyle, setLearningStyle] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showCourseOnboarding, setShowCourseOnboarding] = useState(false);
 
   const totalSteps = 5;
 
@@ -59,9 +61,18 @@ export default function Onboarding({ onNavigate }: OnboardingProps) {
       console.error('Onboarding save failed:', err);
     } finally {
       setSaving(false);
-      onNavigate('dashboard');
+      setShowCourseOnboarding(true);
     }
   };
+
+  if (showCourseOnboarding) {
+    return (
+      <CourseOnboarding
+        onComplete={() => onNavigate('dashboard')}
+        onSkip={() => onNavigate('dashboard')}
+      />
+    );
+  }
 
   const chipClass = (selected: boolean) =>
     `px-3 py-2 rounded-xl text-sm border cursor-pointer transition-all select-none ${
