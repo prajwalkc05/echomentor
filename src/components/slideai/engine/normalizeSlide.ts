@@ -127,7 +127,16 @@ export function normalizeSlideContent(
         }
       }
       if (!c.imageUrl && !c.imagePrompt) {
-        c.imagePrompt = [c.title, c.highlight, ...(c.bullets || []).slice(0, 1)].filter(Boolean).join(', ');
+        const firstSentence =
+          c.description?.split(/[.!?]/)?.[0]?.trim() || c.subtitle?.trim();
+        c.imagePrompt = [
+          c.title,
+          c.highlight,
+          firstSentence,
+          ...(c.bullets || []).slice(0, 2),
+        ]
+          .filter(Boolean)
+          .join(', ');
         c.needsImage = true;
       }
       break;

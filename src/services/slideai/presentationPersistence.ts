@@ -1,6 +1,9 @@
 import type { Presentation, Slide, ThemeId } from '../../types/slideai';
+import { storage as userStorage } from '../../utils/storage';
 
-const STORAGE_KEY = 'echomentor_slideai_presentations';
+// Old global key (pre user-scoping) kept for one-time migration
+const LEGACY_STORAGE_KEY = 'echomentor_slideai_presentations';
+const STORAGE_KEY = 'slideai_presentations';
 const MAX_STORED = 30;
 
 export interface StoredPresentationMeta {
@@ -24,17 +27,32 @@ function parseDate(d: Date | string): Date {
 
 function loadAll(): StoredPresentation[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    // 1) Try user-scoped storage
+    const raw = userStorage.get(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+
+    // 2) Fallback: migrate from legacy shared key (single browser, all users)
+    const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacyRaw) {
+      const parsedLegacy = JSON.parse(legacyRaw);
+      const items = Array.isArray(parsedLegacy) ? parsedLegacy : [];
+      // Save into user-scoped storage and clear legacy to avoid cross-user leaks
+      userStorage.set(STORAGE_KEY, JSON.stringify(items.slice(0, MAX_STORED)));
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      return items;
+    }
+
+    return [];
   } catch {
     return [];
   }
 }
 
 function saveAll(items: StoredPresentation[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, MAX_STORED)));
+  userStorage.set(STORAGE_KEY, JSON.stringify(items.slice(0, MAX_STORED)));
 }
 
 /** First-slide text thumbnail for recent list */
@@ -87,7 +105,7 @@ export function deletePresentationFromStorage(id: string) {
 }
 
 export function clearAllPresentations() {
-  localStorage.removeItem(STORAGE_KEY);
+  userStorage.remove(STORAGE_KEY);
 }
 
 export function storedToPresentation(stored: StoredPresentation): Presentation {

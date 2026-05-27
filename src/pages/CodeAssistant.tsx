@@ -89,6 +89,12 @@ export default function CodeAssistant() {
     return saved ? parseInt(saved) : 280;
   });
   const [isDragging, setIsDragging] = useState(false);
+  const [interactiveInputActive, setInteractiveInputActive] = useState(false);
+  const [interactiveInputPrompt, setInteractiveInputPrompt] = useState('');
+  const [interactiveInputValue, setInteractiveInputValue] = useState('');
+  const [interactiveInputResult, setInteractiveInputResult] = useState('');
+  const [interactiveInputError, setInteractiveInputError] = useState('');
+  const [interactiveCodeForRun, setInteractiveCodeForRun] = useState('');
   const outputRef = useRef<HTMLPreElement>(null);
   const dragStartY = useRef<number>(0);
   const dragStartHeight = useRef<number>(0);
@@ -116,6 +122,10 @@ export default function CodeAssistant() {
   }, [lang]);
 
   useEffect(() => {
+    updateInteractiveInputFromCode(code);
+  }, [code]);
+
+  useEffect(() => {
     if (output) outputRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [output]);
 
@@ -132,6 +142,49 @@ export default function CodeAssistant() {
     const newCode = code + (code ? '\n\n' : '') + snippet.code;
     setCode(newCode);
   };
+
+  const detectRequiresInput = (source: string) => {
+    const inputPatterns = [
+      /\binput\s*\(/i,
+      /\bScanner\b[\s\S]*?new\s+Scanner\s*\(\s*System\.in\s*\)/i,
+      /\bnext(Line|Int|Double|Float|Long|)\s*\(/i,
+      /\bstd::cin\s*>>/i,
+      /\bscanf\s*\(/i,
+      /\bstd::getline\s*\(\s*std::cin/i,
+      /\bgetline\s*\(\s*cin/i,
+    ];
+    return inputPatterns.some(pattern => pattern.test(source));
+  };
+
+  const updateInteractiveInputFromCode = (source: string) => {
+    if (detectRequiresInput(source)) {
+      setInteractiveInputActive(true);
+      setInteractiveInputPrompt('Detected user input in the current code. Enter values below (strings or numbers are accepted).');
+      setInteractiveCodeForRun(source);
+    } else {
+      setInteractiveInputActive(false);
+      setInteractiveInputPrompt('');
+      setInteractiveInputValue('');
+      setInteractiveInputResult('');
+      setInteractiveInputError('');
+      setInteractiveCodeForRun('');
+    }
+  };
+
+  const buildAssistantPrompt = (action: Action, msg: string) => {
+    const codeContext = code.trim() ? `\n\nCode:\n${code}` : '';
+    if (action === 'Generate') {
+      return `Generate clean ${lang} code for the request below. Return only the final ${lang} code inside a fenced markdown code block. If you include any short explanation, place it after the code block.\n\nRequest:\n${msg}${codeContext}`;
+    }
+    if (action === 'Debug') {
+      return `Fix the following ${lang} code and return only the corrected ${lang} code inside a fenced markdown code block. You may include a short explanation after the code block if needed.\n\nRequest:\n${msg}${codeContext}`;
+    }
+    if (action === 'Review') {
+      return `Review this ${lang} code and provide plain-text feedback. Focus on correctness, style, and potential issues.\n\nRequest:\n${msg}${codeContext}`;
+    }
+    return `Explain this ${lang} code and its behavior clearly. Use plain text only.\n\nRequest:\n${msg}${codeContext}`;
+  };
+
   // Drag functionality for resizing output panel
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -176,6 +229,12 @@ export default function CodeAssistant() {
       return;
     }
 
+    setInteractiveInputActive(false);
+    setInteractiveInputValue('');
+    setInteractiveInputResult('');
+    setInteractiveInputError('');
+    setInteractiveCodeForRun('');
+
     const msg = customMsg ?? aiInput.trim();
 
     if (!code.trim() && !msg) {
@@ -189,17 +248,17 @@ export default function CodeAssistant() {
     setError('');
 
     try {
-      const input = code.trim()
-        ? `${msg || action + ' this code'}\n\nCode:\n${code}`
-        : msg;
+      const input = buildAssistantPrompt(action, msg);
 
       const response = await getCodeAssistance(ACTION_MAP[action], input, lang.toLowerCase());
       const result = response?.result || response?.message || response?.output || 'No output received.';
+      let finalCode = code;
 
       if (action === 'Generate') {
         const codeBlockMatch = result.match(/```(?:\w+)?\n([\s\S]*?)```/);
         if (codeBlockMatch) {
-          setCode(codeBlockMatch[1].trim());
+          finalCode = codeBlockMatch[1].trim();
+          setCode(finalCode);
           const explanation = result.replace(/```(?:\w+)?\n[\s\S]*?```/g, '').trim();
           setOutput(explanation || '✅ Code generated and placed in the editor.');
         } else {
@@ -209,7 +268,8 @@ export default function CodeAssistant() {
             result.includes('import ') || result.includes('print(') ||
             result.includes('console.log') || result.includes('return ');
           if (looksLikeCode) {
-            setCode(result.trim());
+            finalCode = result.trim();
+            setCode(finalCode);
             setOutput('✅ Code generated and placed in the editor above.');
           } else {
             setOutput(result);
@@ -218,7 +278,8 @@ export default function CodeAssistant() {
       } else if (action === 'Debug') {
         const codeBlockMatch = result.match(/```(?:\w+)?\n([\s\S]*?)```/);
         if (codeBlockMatch) {
-          setCode(codeBlockMatch[1].trim());
+          finalCode = codeBlockMatch[1].trim();
+          setCode(finalCode);
           const explanation = result.replace(/```(?:\w+)?\n[\s\S]*?```/g, '').trim();
           setOutput(explanation || '✅ Code fixed and placed in the editor.');
         } else {
@@ -226,6 +287,18 @@ export default function CodeAssistant() {
         }
       } else {
         setOutput(result);
+      }
+
+      const hasInputPrompt = detectRequiresInput(finalCode);
+      if (hasInputPrompt) {
+        setInteractiveInputActive(true);
+        setInteractiveCodeForRun(finalCode);
+        setInteractiveInputPrompt('Detected user input in the generated code. Enter values below (strings or numbers are accepted).');
+        setInteractiveInputError('');
+        setOutput(prevOutput => `${prevOutput}\n\nDetected user input in the code. Enter values below and click “Simulate with Input”.`);
+      } else {
+        setInteractiveInputActive(false);
+        setInteractiveCodeForRun('');
       }
 
       setOutputTime(getNow());
@@ -255,6 +328,37 @@ export default function CodeAssistant() {
       runAction('Explain', aiInput);
   };
 
+  const simulateWithInput = async () => {
+    if (!interactiveCodeForRun.trim()) return;
+    if (!interactiveInputValue.trim()) {
+      setInteractiveInputError('Please enter input values to simulate the program.');
+      return;
+    }
+
+    setInteractiveInputError('');
+    setInteractiveInputResult('');
+    setIsLoading(true);
+    setOutput('');
+    setError('');
+
+    try {
+      const prompt = `Simulate the output of this ${lang} program when given the following input values. Do not modify the program. Provide only the console output or result.\n\nProgram:\n${interactiveCodeForRun}\n\nInput:\n${interactiveInputValue}`;
+      const response = await getCodeAssistance('debug', prompt, lang.toLowerCase());
+      const result = response?.result || response?.message || response?.output || 'No simulation output received.';
+      setInteractiveInputResult(result.trim());
+      setOutput(`Simulated Input:\n${interactiveInputValue.trim()}\n\nOutput:\n${result.trim()}`);
+      setOutputTime(getNow());
+    } catch (err: any) {
+      const msg = err.message?.includes('401') || err.message?.includes('Invalid token')
+        ? 'Authentication failed. Please log in again.'
+        : err.message || 'Something went wrong while simulating input. Please try again.';
+      setError(msg);
+      setOutputTime(getNow());
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const copyOutput = () => {
     navigator.clipboard.writeText(output);
     setCopied(true);
@@ -267,6 +371,12 @@ export default function CodeAssistant() {
     setError('');
     setOutputTime('');
     setAiInput('');
+    setInteractiveInputActive(false);
+    setInteractiveInputPrompt('');
+    setInteractiveInputValue('');
+    setInteractiveInputResult('');
+    setInteractiveInputError('');
+    setInteractiveCodeForRun('');
     storage.remove('codeAssistant_code');
     storage.remove('codeAssistant_output');
     storage.remove('codeAssistant_outputTime');
@@ -435,6 +545,58 @@ export default function CodeAssistant() {
               )}
               {output && !isLoading && (
                 <pre ref={outputRef} className="text-gray-300 text-xs font-mono whitespace-pre-wrap leading-relaxed">{output}</pre>
+              )}
+
+              {interactiveInputActive && !isLoading && (
+                <div
+                  className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3"
+                  style={{ backdropFilter: 'blur(8px)' }}
+                >
+                  <div className="text-gray-400 text-xs font-semibold mb-2">
+                    Runtime Input Request
+                  </div>
+                  <textarea
+                    value={interactiveInputValue}
+                    onChange={(e) => setInteractiveInputValue(e.target.value)}
+                    placeholder={interactiveInputPrompt || 'Enter input values for the program. Strings or numbers are accepted. Separate values with commas, spaces, or new lines.'}
+                    className="w-full min-h-[120px] resize-none bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500/50 font-mono"
+                  />
+                  <div className="flex flex-wrap gap-2 items-center mt-3">
+                    <button
+                      onClick={simulateWithInput}
+                      disabled={!interactiveInputValue.trim()}
+                      className="px-3 py-2 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border border-purple-500/30 text-white"
+                    >
+                      Simulate with Input
+                    </button>
+                    <button
+                      onClick={() => {
+                        setInteractiveInputValue('');
+                        setInteractiveInputError('');
+                        setInteractiveInputResult('');
+                      }}
+                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 transition-colors"
+                    >
+                      Clear Input
+                    </button>
+                  </div>
+
+                  {interactiveInputError && (
+                    <div className="mt-2 text-red-400 text-xs font-semibold">
+                      {interactiveInputError}
+                    </div>
+                  )}
+
+                  {interactiveInputResult && (
+                    <div className="mt-2 text-green-400 text-sm font-bold whitespace-pre-wrap">
+                      Result stored in output above.
+                    </div>
+                  )}
+
+                  <div className="mt-2 text-gray-500 text-[11px] leading-relaxed">
+                    The simulated input panel appears when the generated program includes user input calls such as <code>input()</code>, <code>Scanner</code>, or <code>cin &gt;&gt;</code>.
+                  </div>
+                </div>
               )}
             </div>
           </div>

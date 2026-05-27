@@ -362,6 +362,10 @@ export async function fetchYouTubeCourses(topic: string, skillLevel: string = 'B
   }
 }
 
+function normalizeCareerGoal(goal: string): string {
+  return goal.trim().toLowerCase().replace(/[-_]+/g, ' ');
+}
+
 function getFallbackCourses(topic: string): YouTubeCourse[] {
   const careerMap: Record<string, string> = {
     'full stack developer': 'web development',
@@ -370,11 +374,13 @@ function getFallbackCourses(topic: string): YouTubeCourse[] {
     'web developer': 'web development',
     'python developer': 'python',
     'data scientist': 'data science',
+    'data analyst': 'data science',
+    'data-scientist': 'data science',
     'machine learning engineer': 'machine learning',
     'ui/ux designer': 'ui-ux-design'
   };
 
-  const key = careerMap[topic.toLowerCase()] || 'web development';
+  const key = careerMap[normalizeCareerGoal(topic)] || 'web development';
   const courses = fallbackCourses[key] || fallbackCourses['web development'];
   console.log('Using fallback courses for:', key, 'Count:', courses.length);
   return courses;

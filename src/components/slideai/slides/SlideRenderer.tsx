@@ -445,7 +445,19 @@ function SplitLeftTextLayout({ slide, theme, scale = 1, isEditing, onUpdate }: {
             boxShadow: isDark ? `0 0 40px ${t.colors.primary}20` : '0 8px 40px rgba(0,0,0,0.1)',
           }}
         >
-          <SlideImage theme={theme} size="large" type="tech" imageUrl={c.imageUrl} prompt={c.imagePrompt || c.title} imageAlt={c.imageAlt} />
+          <SlideImage
+            theme={theme}
+            size="large"
+            type="tech"
+            imageUrl={c.imageUrl}
+            prompt={
+              c.imagePrompt ||
+              [c.title, c.highlight, c.description, ...(c.bullets || []).slice(0, 2)]
+                .filter(Boolean)
+                .join(', ')
+            }
+            imageAlt={c.imageAlt}
+          />
         </div>
       </div>
     </div>
@@ -471,7 +483,19 @@ function SplitRightTextLayout({ slide, theme, scale = 1, isEditing, onUpdate }: 
             boxShadow: isDark ? `0 0 40px ${t.colors.primary}20` : '0 8px 40px rgba(0,0,0,0.1)',
           }}
         >
-          <SlideImage theme={theme} size="large" type="business" imageUrl={c.imageUrl} prompt={c.imagePrompt || c.title} imageAlt={c.imageAlt} />
+          <SlideImage
+            theme={theme}
+            size="large"
+            type="business"
+            imageUrl={c.imageUrl}
+            prompt={
+              c.imagePrompt ||
+              [c.title, c.highlight, c.description, ...(c.bullets || []).slice(0, 2)]
+                .filter(Boolean)
+                .join(', ')
+            }
+            imageAlt={c.imageAlt}
+          />
         </div>
       </div>
 
@@ -857,7 +881,19 @@ function BulletsImageLayout({ slide, theme, scale = 1 }: { slide: Slide; theme: 
             className="w-full h-full"
             style={{ border: `1px solid ${t.colors.border}`, borderRadius: `${16 * scale}px`, overflow: 'hidden', boxShadow: isDark ? `0 0 30px ${t.colors.primary}20` : '0 8px 30px rgba(0,0,0,0.1)' }}
           >
-          <SlideImage theme={theme} size="large" type="cyber" imageUrl={c.imageUrl} prompt={c.imagePrompt || c.title} imageAlt={c.imageAlt} />
+          <SlideImage
+            theme={theme}
+            size="large"
+            type="cyber"
+            imageUrl={c.imageUrl}
+            prompt={
+              c.imagePrompt ||
+              [c.title, c.description, c.highlight, ...(c.bullets || []).slice(0, 2)]
+                .filter(Boolean)
+                .join(', ')
+            }
+            imageAlt={c.imageAlt}
+          />
           </div>
         </div>
       </div>

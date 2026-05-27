@@ -27,6 +27,7 @@ export function ImageFrame({
   const isDark = theme !== 'corporate-yellow';
   const [loaded, setLoaded] = React.useState(false);
   const [error, setError] = React.useState(false);
+  const [candidateIndex, setCandidateIndex] = React.useState(0);
 
   const dims =
     size === 'large'
@@ -36,15 +37,28 @@ export function ImageFrame({
         : { w: 400, h: 300 };
   const minH = size === 'large' ? 160 * scale : size === 'medium' ? 100 * scale : 60 * scale;
 
-  const src =
-    imageUrl ||
-    (() => {
-      const query = imagePrompt || 'professional presentation';
-      const encoded = encodeURIComponent(
-        `professional presentation slide, ${query}, clean minimal high quality, no text`
-      );
-      return `https://image.pollinations.ai/prompt/${encoded}?width=${dims.w}&height=${dims.h}&nologo=true&model=flux`;
-    })();
+  const candidates = React.useMemo(() => {
+    if (imageUrl) return [imageUrl];
+
+    const query = imagePrompt || 'professional presentation';
+    const encoded = encodeURIComponent(
+      `professional presentation slide, ${query}, clean minimal high quality, no text`
+    );
+    const seed = encodeURIComponent(query.toLowerCase().replace(/\s+/g, '-'));
+    return [
+      `https://image.pollinations.ai/prompt/${encoded}?width=${dims.w}&height=${dims.h}&nologo=true&model=flux`,
+      `https://source.unsplash.com/${dims.w}x${dims.h}/?${encodeURIComponent(query)}`,
+      `https://picsum.photos/seed/${seed}/${dims.w}/${dims.h}`,
+    ];
+  }, [dims.h, dims.w, imagePrompt, imageUrl]);
+
+  const src = candidates[Math.min(candidateIndex, candidates.length - 1)];
+
+  React.useEffect(() => {
+    setLoaded(false);
+    setError(false);
+    setCandidateIndex(0);
+  }, [imageUrl, imagePrompt, size, theme]);
 
   return (
     <div
@@ -66,7 +80,14 @@ export function ImageFrame({
           className="w-full h-full object-cover"
           style={{ display: loaded ? 'block' : 'none' }}
           onLoad={() => setLoaded(true)}
-          onError={() => setError(true)}
+          onError={() => {
+            if (candidateIndex < candidates.length - 1) {
+              setCandidateIndex((i) => i + 1);
+              setLoaded(false);
+            } else {
+              setError(true);
+            }
+          }}
           width={dims.w}
           height={dims.h}
         />
@@ -84,9 +105,9 @@ export function ImageFrame({
           Click to upload or replace
         </div>
       )}
-      {error && imageUrl && (
+      {error && (
         <div className="absolute inset-0 flex items-center justify-center text-xs" style={{ color: t.colors.textMuted }}>
-          Image failed to load
+          Image failed to load. Use Upload in Design tab.
         </div>
       )}
     </div>

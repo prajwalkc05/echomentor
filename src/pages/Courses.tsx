@@ -58,6 +58,7 @@ export default function Courses() {
   const [userProfile, setUserProfile] = useState<UserLearningProfile | null>(null);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [recommendedCourses, setRecommendedCourses] = useState<Course[]>([]);
+  const [recommendedCourseIds, setRecommendedCourseIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
@@ -72,12 +73,14 @@ export default function Courses() {
           const allYoutubeCourses = await fetchYouTubeCourses(profile.careerGoal, profile.skillLevel);
           
           if (allYoutubeCourses.length > 0) {
+            const mappedAll = allYoutubeCourses.map(mapAggregatedToCourse);
             // Get recommendations
             const recommended = await recommendCourses(profile, allYoutubeCourses);
             const mappedRecommended = recommended.map(mapAggregatedToCourse);
             setRecommendedCourses(mappedRecommended);
-            setAllCourses(mappedRecommended);
-            console.log('Loaded YouTube courses:', mappedRecommended.length);
+            setRecommendedCourseIds(new Set(mappedRecommended.map(course => course.id)));
+            setAllCourses(mappedAll);
+            console.log('Loaded YouTube courses:', mappedAll.length);
           } else {
             console.log('No YouTube courses found');
           }
@@ -157,6 +160,15 @@ export default function Courses() {
       c.platform === activeFilter;
     return matchSearch && matchFilter;
   });
+
+  const orderedCourses = filtered
+    .slice()
+    .sort((a, b) => {
+      const aPreferred = recommendedCourseIds.has(a.id) ? 0 : 1;
+      const bPreferred = recommendedCourseIds.has(b.id) ? 0 : 1;
+      if (aPreferred !== bPreferred) return aPreferred - bPreferred;
+      return b.title.localeCompare(a.title);
+    });
 
   return (
     <div className="flex-1 flex flex-col bg-[#0f0f1e] h-screen overflow-hidden">
@@ -399,7 +411,7 @@ export default function Courses() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {filtered.map(course => {
+                  {orderedCourses.map(course => {
                     const isEnrolled = enrolled.has(course.id);
                     return (
                       <div
@@ -475,9 +487,9 @@ export default function Courses() {
                           <div className="mb-2 flex flex-wrap gap-1">
                             {isEnrolled ? (
                               <span className="inline-block bg-green-600/20 text-green-400 text-xs px-2 py-0.5 rounded-full mr-2 animate-pulse" title="You are enrolled in this course">Enrolled</span>
-                            ) : (
+                            ) : recommendedCourseIds.has(course.id) ? (
                               <span className="inline-block bg-purple-600/20 text-purple-300 text-xs px-2 py-0.5 rounded-full mr-2 animate-fade-in" title="AI picked this course for your goal">AI Pick for your goal</span>
-                            )}
+                            ) : null}
                             {course.certificateAvailable && (
                               <span className="inline-block bg-blue-600/20 text-blue-300 text-xs px-2 py-0.5 rounded-full" title="Certificate available">Certificate</span>
                             )}

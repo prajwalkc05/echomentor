@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Sparkles, Play, Bookmark, Plus, TrendingUp, Target, Zap, BookOpen, ChevronRight, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { Sparkles, Play, Bookmark, Target, Zap, BookOpen, Settings } from 'lucide-react';
 import { Page } from '../types';
 
 interface UserLearningProfile {
@@ -25,7 +25,7 @@ interface Course {
 interface CoursesDashboardProps {
   profile: UserLearningProfile;
   onResetProfile: () => void;
-  onNavigate?: (page: Page) => void;
+  onNavigate?: (page: Page) => void; // eslint-disable-line @typescript-eslint/no-unused-vars
 }
 
 const recommendedCourses: Course[] = [
@@ -72,7 +72,7 @@ const roadmapSteps = [
   { step: 5, title: 'Backend Integration', status: 'upcoming' },
 ];
 
-export default function CoursesDashboard({ profile, onResetProfile, onNavigate }: CoursesDashboardProps) {
+export default function CoursesDashboard({ profile, onResetProfile }: CoursesDashboardProps) {
   const [savedCourses, setSavedCourses] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'roadmap' | 'saved'>('dashboard');
 
@@ -235,21 +235,21 @@ export default function CoursesDashboard({ profile, onResetProfile, onNavigate }
                     </p>
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300 text-sm font-bold flex-shrink-0">1</div>
+                        <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300 text-sm font-bold shrink-0">1</div>
                         <div>
                           <p className="text-white font-medium">Master JavaScript Fundamentals</p>
                           <p className="text-gray-400 text-sm">Essential for any developer role</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300 text-sm font-bold flex-shrink-0">2</div>
+                        <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300 text-sm font-bold shrink-0">2</div>
                         <div>
                           <p className="text-white font-medium">Learn React or Vue</p>
                           <p className="text-gray-400 text-sm">Modern frontend framework</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300 text-sm font-bold flex-shrink-0">3</div>
+                        <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300 text-sm font-bold shrink-0">3</div>
                         <div>
                           <p className="text-white font-medium">Build Real Projects</p>
                           <p className="text-gray-400 text-sm">Portfolio building is crucial</p>

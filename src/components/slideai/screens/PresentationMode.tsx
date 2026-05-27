@@ -106,7 +106,7 @@ export default function PresentationMode() {
         onClick={goNext}
         style={{ cursor: 'pointer' }}
       >
-        <div className="w-full h-full flex items-center justify-center p-0">
+        <div className="w-full h-full flex items-center justify-center px-4 py-3">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentSlide.id}
@@ -115,12 +115,15 @@ export default function PresentationMode() {
               exit={SLIDE_TRANSITIONS.exit}
               transition={SLIDE_TRANSITIONS.transition}
               className="w-full"
-              style={{ maxWidth: '100vw', maxHeight: '100vh' }}
+              style={{
+                width: 'min(96vw, calc((100vh - 130px) * 16 / 9))',
+                maxHeight: 'calc(100vh - 130px)',
+              }}
             >
               <SlideRenderer
                 slide={currentSlide}
                 theme={currentSlide.theme || theme}
-                scale={1.1}
+                scale={1}
                 animate={true}
               />
             </motion.div>
