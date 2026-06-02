@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, X, UserX, Trash2, RefreshCw } from 'lucide-react';
+import { Search, X, Trash2, RefreshCw } from 'lucide-react';
 import { PageHeader, Badge, Table, ActionBtn, Input, AdminPage, Card } from '../components/AdminUI';
 import api from '../../utils/api';
 
@@ -165,4 +165,3 @@ export default function AdminUsers() {
   );
 }
 
-const MOCK_USERS: any[] = [];

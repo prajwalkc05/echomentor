@@ -45,7 +45,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-orange-500/20">
+          <div className="w-16 h-16 bg-linear-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-orange-500/20">
             <Shield size={32} className="text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Admin Panel</h1>
@@ -95,7 +95,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold py-2.5 rounded-lg hover:from-orange-600 hover:to-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-linear-to-r from-orange-500 to-red-600 text-white font-semibold py-2.5 rounded-lg hover:from-orange-600 hover:to-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Authenticating...' : 'Login to Admin Panel'}
             </button>
