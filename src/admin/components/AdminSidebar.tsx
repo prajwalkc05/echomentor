@@ -1,9 +1,10 @@
-import { LayoutDashboard, Users, CreditCard, Bot, FileText, Presentation, BookOpen, Rocket, Briefcase, Bell, Tag, Settings, Shield, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Bot, FileText, Presentation, BookOpen, Rocket, Briefcase, Bell, Tag, Settings, Shield, BarChart3, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { AdminPage } from '../AdminApp';
 import { useState } from 'react';
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'users', label: 'User Management', icon: Users },
   { id: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
   { id: 'ai-usage', label: 'AI Usage', icon: Bot },
