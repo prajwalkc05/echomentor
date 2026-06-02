@@ -7,11 +7,34 @@
 const getUserId = (): string => {
   try {
     const token = localStorage.getItem('authToken');
-    if (!token) return 'guest';
+    if (!token) {
+      console.log('[STORAGE] No auth token found');
+      return 'guest';
+    }
+    
     // Decode JWT payload to get user id (no verification needed client-side)
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.id || payload._id || payload.sub || 'guest';
-  } catch {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.error('[STORAGE] Invalid JWT format');
+      return 'guest';
+    }
+    
+    const payload = JSON.parse(atob(parts[1]));
+    console.log('[STORAGE] JWT payload keys:', Object.keys(payload));
+    
+    // Try multiple ID fields in order of preference
+    const userId = payload.id || payload._id || payload.userId || payload.sub || payload.email;
+    
+    if (!userId) {
+      console.error('[STORAGE] No user identifier found in JWT. Payload:', payload);
+      // Fallback: use email or return guest
+      return payload.email ? `user_${payload.email.replace('@', '_')}` : 'guest';
+    }
+    
+    console.log('[STORAGE] Using user ID:', userId, 'Type:', typeof userId);
+    return String(userId);
+  } catch (e) {
+    console.error('[STORAGE] Failed to extract user ID:', e);
     return 'guest';
   }
 };

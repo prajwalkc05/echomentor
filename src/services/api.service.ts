@@ -304,6 +304,38 @@ export const userService = {
   async saveCourseOnboarding(data: { careerGoal: string; interests: string[]; learningStyle: string; skillLevel: string; mainGoal: string }) {
     return api.post('/api/user/course-onboarding', data);
   },
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return api.put('/api/user/change-password', { currentPassword, newPassword });
+  },
+
+  async toggleTwoFactor() {
+    return api.put('/api/user/two-factor', {});
+  },
+
+  async getSessions() {
+    return api.get('/api/user/sessions');
+  },
+
+  async getPrivacy() {
+    return api.get('/api/user/privacy');
+  },
+
+  async updatePrivacy(data: any) {
+    return api.put('/api/user/privacy', data);
+  },
+
+  async updateCookies(data: any) {
+    return api.put('/api/user/cookies', data);
+  },
+
+  async deleteAccount(password: string) {
+    return api.post('/api/user/account/delete', { password });
+  },
+
+  async updateNotificationPreferences(data: { email?: boolean; push?: boolean; reminders?: boolean }) {
+    return api.put('/api/user/notifications', data);
+  },
 };
 
 // Startup Guide Service - Token required

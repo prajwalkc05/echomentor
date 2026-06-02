@@ -33,6 +33,22 @@ const quotes = [
   { text: "It always seems impossible until it's done.", author: 'Nelson Mandela' },
 ];
 
+function getCareerLabel(goalId: string): string {
+  const labels: Record<string, string> = {
+    'frontend': 'Frontend Developer',
+    'backend': 'Backend Developer',
+    'fullstack': 'Full Stack Developer',
+    'data-scientist': 'Data Scientist',
+    'ml-engineer': 'ML Engineer',
+    'devops': 'DevOps Engineer',
+    'designer': 'UI/UX Designer',
+    'product-manager': 'Product Manager',
+    'entrepreneur': 'Entrepreneur',
+    'student': 'Student',
+  };
+  return labels[goalId] || goalId;
+}
+
 function generateAIRecommendations(profile: UserLearningProfile): string[] {
   const recommendations: string[] = [];
 
@@ -97,14 +113,11 @@ function generateAIRecommendations(profile: UserLearningProfile): string[] {
   ];
 
   // Customize based on skill level
-  if (profile.skillLevel === 'Beginner') {
-    recommendations.push(`Start with: ${baseRecs[0]}`);
-  } else if (profile.skillLevel === 'Intermediate') {
-    recommendations.push(`Advance your skills: ${baseRecs[0]}`);
-  } else if (profile.skillLevel === 'Advanced') {
-    recommendations.push(`Master advanced concepts: ${baseRecs[0]}`);
-  }
-
+  const prefix = profile.skillLevel === 'Beginner' ? 'Start with:' 
+    : profile.skillLevel === 'Intermediate' ? 'Advance your skills:'
+    : 'Master advanced concepts:';
+  
+  recommendations.push(`${prefix} ${baseRecs[0]}`);
   recommendations.push(baseRecs[1]);
   recommendations.push(baseRecs[2]);
 
@@ -119,7 +132,7 @@ function generateAIRecommendations(profile: UserLearningProfile): string[] {
     recommendations[2] = 'Accelerate learning with intensive courses';
   }
 
-  return recommendations.slice(0, 3);
+  return recommendations;
 }
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
@@ -137,6 +150,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   useEffect(() => {
     fetchChatHistory();
     fetchMoodHistory();
+    
+    // Verify auth token exists before loading user data
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.warn('No auth token - user not logged in');
+      return;
+    }
     
     // Load user learning profile and generate AI recommendations
     const profile = storage.getJSON<UserLearningProfile>('userLearningProfile');
@@ -226,7 +246,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               <div className="bg-linear-to-br from-purple-900/30 to-indigo-900/30 border border-purple-500/30 rounded-2xl p-6">
                 <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                   <Sparkles size={20} className="text-purple-400" />
-                  AI Recommendations for {userProfile.careerGoal}
+                  AI Recommendations for {getCareerLabel(userProfile.careerGoal)}
                 </h3>
                 <div className="space-y-3">
                   {aiRecommendations.map((rec, idx) => (

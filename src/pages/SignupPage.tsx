@@ -5,9 +5,10 @@ import { useUser } from '../context/UserContext';
 
 interface SignupPageProps {
   onNavigate: (page: Page) => void;
+  onNewUserSignup?: () => void;
 }
 
-export default function SignupPage({ onNavigate }: SignupPageProps) {
+export default function SignupPage({ onNavigate, onNewUserSignup }: SignupPageProps) {
   const { signup, loginWithGoogle, loading } = useUser();
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -26,6 +27,7 @@ export default function SignupPage({ onNavigate }: SignupPageProps) {
     setError('');
     try {
       await signup(name.trim(), email.trim(), password);
+      if (onNewUserSignup) onNewUserSignup();
       setTimeout(() => onNavigate('onboarding'), 100);
     } catch (err: any) {
       setError(err.message || 'Signup failed. Please try again.');
@@ -37,6 +39,7 @@ export default function SignupPage({ onNavigate }: SignupPageProps) {
     setError('');
     try {
       const { isNewUser } = await loginWithGoogle();
+      if (isNewUser && onNewUserSignup) onNewUserSignup();
       setTimeout(() => onNavigate(isNewUser ? 'onboarding' : 'dashboard'), 100);
     } catch (err: any) {
       setError(err.message || 'Google sign-in failed.');

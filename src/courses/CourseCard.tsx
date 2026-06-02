@@ -29,13 +29,13 @@ export default function CourseCard({
   return (
     <div className="group relative h-full">
       {/* Gradient Glow Background */}
-      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="absolute inset-0 bg-linear-to-r from-purple-600/20 to-blue-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
       {/* Card Container */}
       <div className="relative h-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition-all duration-300 flex flex-col">
         {/* Thumbnail */}
-        <div className={`relative h-40 bg-gradient-to-br ${config.color} overflow-hidden`}>
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
+        <div className={`relative h-40 bg-linear-to-br ${config.color} overflow-hidden`}>
+          <div className="absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="text-5xl opacity-50">{config.icon}</span>
           </div>
@@ -118,7 +118,7 @@ export default function CourseCard({
           <div className="flex gap-2 mt-auto">
             <button
               onClick={() => onStartLearning(course)}
-              className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-xs font-semibold py-2 rounded-lg transition-all duration-300 flex items-center justify-center gap-1 group/btn"
+              className="flex-1 bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-xs font-semibold py-2 rounded-lg transition-all duration-300 flex items-center justify-center gap-1 group/btn"
             >
               <BookOpen size={12} />
               Start

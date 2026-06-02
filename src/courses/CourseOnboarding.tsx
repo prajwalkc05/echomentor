@@ -80,6 +80,14 @@ export default function CourseOnboarding({ onComplete, onSkip }: CourseOnboardin
       skillLevel,
       mainGoal,
     };
+
+    // Check if career goal changed — if so, clear stale course data
+    const existing = storage.getJSON<UserLearningProfile>('userLearningProfile');
+    if (existing?.careerGoal !== careerGoal) {
+      storage.remove('enrolled_courses');
+      storage.remove('course_progress');
+    }
+
     storage.setJSON('userLearningProfile', profile);
     
     try {

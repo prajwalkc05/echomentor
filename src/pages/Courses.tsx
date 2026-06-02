@@ -1,14 +1,26 @@
 import { useState, useEffect } from 'react';
-import { Search, Bell, BookOpen, Star, Clock, Users, Sparkles, Zap, TrendingUp, Award, Loader, ExternalLink, X } from 'lucide-react';
+import { Search, Bell, BookOpen, Star, Clock, Users, Sparkles, Zap, TrendingUp, Award, Loader, ExternalLink, X, Play, Pause, RotateCcw, Settings } from 'lucide-react';
 import { storage } from '../utils/storage';
 import { fetchYouTubeCourses, recommendCourses } from '../services/youtubeCourseFetcher';
+import CourseOnboarding from '../courses/CourseOnboarding';
+import type { UserLearningProfile as OnboardingProfile } from '../courses/CourseOnboarding';
 
-interface UserLearningProfile {
-  careerGoal: string;
-  interests: string[];
-  learningStyle: string;
-  skillLevel: string;
-  mainGoal: string;
+type UserLearningProfile = OnboardingProfile;
+
+function getCareerLabel(goalId: string): string {
+  const labels: Record<string, string> = {
+    'frontend': 'Frontend Developer',
+    'backend': 'Backend Developer',
+    'fullstack': 'Full Stack Developer',
+    'data-scientist': 'Data Scientist',
+    'ml-engineer': 'ML Engineer',
+    'devops': 'DevOps Engineer',
+    'designer': 'UI/UX Designer',
+    'product-manager': 'Product Manager',
+    'entrepreneur': 'Entrepreneur',
+    'student': 'Student',
+  };
+  return labels[goalId] || goalId;
 }
 
 interface Course {
@@ -33,6 +45,14 @@ interface Course {
   lessons?: number;
 }
 
+interface CourseProgress {
+  progress: number;
+  status: 'not-started' | 'in-progress' | 'paused' | 'completed';
+  watchedTime: number;
+  lastWatchedAt: number;
+  enrolledAt: number;
+}
+
 const getPlatformColor = (platform: string): string => {
   const colors: Record<string, string> = {
     'youtube': 'bg-red-600',
@@ -50,58 +70,170 @@ const mapAggregatedToCourse = (course: any): Course => ({
   lessons: Math.floor(Math.random() * 50) + 10
 });
 
+const STORAGE_KEY_ENROLLED = 'enrolled_courses';
+const STORAGE_KEY_PROGRESS = 'course_progress';
+
 export default function Courses() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [enrolled, setEnrolled] = useState<Set<string>>(new Set());
-  const [progress, setProgress] = useState<Record<string, number>>({});
+  const [progress, setProgress] = useState<Record<string, CourseProgress>>({});
   const [userProfile, setUserProfile] = useState<UserLearningProfile | null>(null);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [recommendedCourses, setRecommendedCourses] = useState<Course[]>([]);
   const [recommendedCourseIds, setRecommendedCourseIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [watchTimer, setWatchTimer] = useState<NodeJS.Timeout | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Load data from user-scoped storage on mount
+  useEffect(() => {
+    const savedEnrolled = storage.getJSON<string[]>(STORAGE_KEY_ENROLLED);
+    const savedProgress = storage.getJSON<Record<string, CourseProgress>>(STORAGE_KEY_PROGRESS);
+    if (savedEnrolled) setEnrolled(new Set(savedEnrolled));
+    if (savedProgress) setProgress(savedProgress);
+  }, []);
+
+  // Persist enrolled courses to user-scoped storage
+  useEffect(() => {
+    storage.setJSON(STORAGE_KEY_ENROLLED, Array.from(enrolled));
+  }, [enrolled]);
+
+  // Persist progress to user-scoped storage
+  useEffect(() => {
+    storage.setJSON(STORAGE_KEY_PROGRESS, progress);
+  }, [progress]);
+
+  const loadCourses = async (profile: UserLearningProfile) => {
+    setLoading(true);
+    try {
+      // Get current logged-in user ID to verify we're not loading other user's data
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.warn('No auth token - cannot load courses');
+        setLoading(false);
+        return;
+      }
+      
+      const allYoutubeCourses = await fetchYouTubeCourses(profile.careerGoal, profile.skillLevel);
+      if (allYoutubeCourses.length > 0) {
+        const mappedAll = allYoutubeCourses.map(mapAggregatedToCourse);
+        const recommended = await recommendCourses(profile, allYoutubeCourses);
+        const mappedRecommended = recommended.map(mapAggregatedToCourse);
+        setRecommendedCourses(mappedRecommended);
+        setRecommendedCourseIds(new Set(mappedRecommended.map(course => course.id)));
+        setAllCourses(mappedAll);
+      }
+    } catch (error) {
+      console.error('Failed to load courses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadCourses = async () => {
-      try {
-        const profile = storage.getJSON<UserLearningProfile>('userLearningProfile');
-        if (profile) {
-          setUserProfile(profile);
-          
-          // Fetch from YouTube API directly
-          const allYoutubeCourses = await fetchYouTubeCourses(profile.careerGoal, profile.skillLevel);
-          
-          if (allYoutubeCourses.length > 0) {
-            const mappedAll = allYoutubeCourses.map(mapAggregatedToCourse);
-            // Get recommendations
-            const recommended = await recommendCourses(profile, allYoutubeCourses);
-            const mappedRecommended = recommended.map(mapAggregatedToCourse);
-            setRecommendedCourses(mappedRecommended);
-            setRecommendedCourseIds(new Set(mappedRecommended.map(course => course.id)));
-            setAllCourses(mappedAll);
-            console.log('Loaded YouTube courses:', mappedAll.length);
-          } else {
-            console.log('No YouTube courses found');
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load courses:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadCourses();
+    const profile = storage.getJSON<UserLearningProfile>('userLearningProfile');
+    if (profile) {
+      setUserProfile(profile);
+      loadCourses(profile);
+    } else {
+      setShowOnboarding(true);
+      setLoading(false);
+    }
   }, []);
+
+  const handleOnboardingComplete = (profile: OnboardingProfile) => {
+    setUserProfile(profile);
+    setShowOnboarding(false);
+    loadCourses(profile);
+  };
 
   const enroll = (course: Course) => {
     setSelectedCourse(course);
+    const now = Date.now();
     setEnrolled(prev => new Set([...prev, course.id]));
-    setProgress(prev => ({ ...prev, [course.id]: 0 }));
+    setProgress(prev => ({
+      ...prev,
+      [course.id]: {
+        progress: 0,
+        status: 'in-progress',
+        watchedTime: 0,
+        lastWatchedAt: now,
+        enrolledAt: now
+      }
+    }));
   };
 
-  const continueLesson = (id: string) => {
-    setProgress(prev => ({ ...prev, [id]: Math.min(100, (prev[id] ?? 0) + 10) }));
+  const pauseCourse = (courseId: string) => {
+    setProgress(prev => ({
+      ...prev,
+      [courseId]: { ...prev[courseId], status: 'paused' }
+    }));
+  };
+
+  const resumeCourse = (courseId: string) => {
+    setProgress(prev => ({
+      ...prev,
+      [courseId]: { ...prev[courseId], status: 'in-progress', lastWatchedAt: Date.now() }
+    }));
+  };
+
+  const resetCourse = (courseId: string) => {
+    setProgress(prev => ({
+      ...prev,
+      [courseId]: {
+        progress: 0,
+        status: 'in-progress',
+        watchedTime: 0,
+        lastWatchedAt: Date.now(),
+        enrolledAt: progress[courseId]?.enrolledAt || Date.now()
+      }
+    }));
+  };
+
+  const openCoursePlayer = (course: Course) => {
+    setSelectedCourse(course);
+    setPlayerOpen(true);
+    
+    // Start tracking watch time
+    if (enrolled.has(course.id)) {
+      const timer = setInterval(() => {
+        setProgress(prev => ({
+          ...prev,
+          [course.id]: {
+            ...prev[course.id],
+            watchedTime: (prev[course.id]?.watchedTime || 0) + 1,
+            lastWatchedAt: Date.now()
+          }
+        }));
+      }, 1000); // Track every second
+      
+      setWatchTimer(timer);
+    }
+  };
+
+  const closeCoursePlayer = () => {
+    if (watchTimer) {
+      clearInterval(watchTimer);
+      setWatchTimer(null);
+    }
+    setPlayerOpen(false);
+    // Auto-pause when closing player
+    if (selectedCourse && enrolled.has(selectedCourse.id)) {
+      pauseCourse(selectedCourse.id);
+    }
+    setSelectedCourse(null);
+  };
+
+  const formatWatchTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
   };
 
   const getPlatformInfo = (platform: string) => {
@@ -145,6 +277,11 @@ export default function Courses() {
     return info[platform] || info['youtube'];
   };
 
+  // Get paused courses (for Continue Learning section)
+  const pausedCourses = Array.from(enrolled)
+    .map(id => allCourses.find(c => c.id === id))
+    .filter(course => course && progress[course.id]?.status === 'paused') as Course[];
+
   const filters = ['All', 'Enrolled', 'Completed', ...new Set(allCourses.flatMap(c => c.tags)), ...new Set(allCourses.map(c => c.platform))];
 
   const filtered = allCourses.filter(c => {
@@ -155,7 +292,7 @@ export default function Courses() {
     const matchFilter =
       activeFilter === 'All' ||
       (activeFilter === 'Enrolled' && enrolled.has(c.id)) ||
-      (activeFilter === 'Completed' && (progress[c.id] ?? 0) >= 100) ||
+      (activeFilter === 'Completed' && (progress[c.id]?.progress ?? 0) >= 100) ||
       c.tags.some(t => t.toLowerCase().includes(activeFilter.toLowerCase())) ||
       c.platform === activeFilter;
     return matchSearch && matchFilter;
@@ -170,6 +307,15 @@ export default function Courses() {
       return b.title.localeCompare(a.title);
     });
 
+  if (showOnboarding) {
+    return (
+      <CourseOnboarding
+        onComplete={handleOnboardingComplete}
+        onSkip={() => { setShowOnboarding(false); setLoading(false); }}
+      />
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col bg-[#0f0f1e] h-screen overflow-hidden">
       {/* Header */}
@@ -177,7 +323,7 @@ export default function Courses() {
         <div>
           <h1 className="text-white text-xl font-bold flex items-center gap-2">
             <BookOpen size={22} className="text-purple-400" />
-            {userProfile?.careerGoal ? `${userProfile.careerGoal} Learning Path` : 'Courses'}
+            {userProfile?.careerGoal ? `${getCareerLabel(userProfile.careerGoal)} Learning Path` : 'Courses'}
           </h1>
           <p className="text-gray-500 text-sm">
             {userProfile?.careerGoal
@@ -195,6 +341,13 @@ export default function Courses() {
               className="bg-transparent text-sm text-gray-400 placeholder-gray-600 focus:outline-none flex-1"
             />
           </div>
+          <button
+            onClick={() => setShowOnboarding(true)}
+            title="Set up learning profile"
+            className="flex items-center gap-1.5 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-purple-300 text-xs font-medium px-3 py-2 rounded-xl transition-colors"
+          >
+            <Settings size={14} /> {userProfile ? 'Update Profile' : 'Set Up Profile'}
+          </button>
           <Bell size={18} className="text-gray-400 cursor-pointer hover:text-white transition-colors" />
         </div>
       </div>
@@ -268,10 +421,10 @@ export default function Courses() {
                           </div>
                           {isEnrolled ? (
                             <button
-                              onClick={() => continueLesson(course.id)}
-                              className="w-full bg-green-600 hover:bg-green-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors"
+                              onClick={() => openCoursePlayer(course)}
+                              className="w-full bg-green-600 hover:bg-green-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors flex items-center justify-center gap-1"
                             >
-                              Continue Learning
+                              <Play size={12} /> Continue
                             </button>
                           ) : (
                             <button
@@ -298,7 +451,7 @@ export default function Courses() {
                     What Should I Learn Next?
                   </h3>
                   <p className="text-gray-300 mb-4">
-                    Based on your goal to become a <span className="text-purple-300 font-semibold">{userProfile.careerGoal}</span>:
+                    Based on your goal to become a <span className="text-purple-300 font-semibold">{getCareerLabel(userProfile.careerGoal)}</span>:
                   </p>
                   <div className="space-y-3">
                     {recommendedCourses.slice(0, 3).map((course, idx) => (
@@ -336,50 +489,127 @@ export default function Courses() {
               </div>
             )}
 
-            {/* Enrolled Courses */}
-            {enrolled.size > 0 && (
+            {/* Paused Courses - Continue Learning Section */}
+            {pausedCourses.length > 0 && (
               <div className="mb-8">
                 <h2 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
-                  <TrendingUp size={20} className="text-green-400" />
-                  Continue Learning
+                  <TrendingUp size={20} className="text-orange-400" />
+                  Continue Learning (Paused)
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {allCourses.map(course => {
-                    if (!enrolled.has(course.id)) return null;
-                    const pct = progress[course.id] ?? 0;
+                  {pausedCourses.map(course => {
+                    const courseProgress = progress[course.id];
+                    const pct = courseProgress?.progress ?? 0;
                     return (
                       <div
                         key={course.id}
-                        className="bg-[#1a1a2e] border border-white/5 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all cursor-pointer group"
+                        className="bg-[#1a1a2e] border border-orange-500/30 rounded-2xl overflow-hidden hover:border-orange-500/50 transition-all cursor-pointer group"
                       >
                         <div className={`${course.color} h-24 flex items-center justify-center relative overflow-hidden`}>
                           <div className="absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
+                          <Pause size={32} className="text-white opacity-60" />
                         </div>
                         <div className="p-4">
-                          <h3 className="text-white font-semibold text-sm mb-1 group-hover:text-purple-300 transition-colors">
+                          <h3 className="text-white font-semibold text-sm mb-1 group-hover:text-orange-300 transition-colors">
                             {course.title}
                           </h3>
                           <p className="text-gray-500 text-xs mb-2">{course.instructor}</p>
-                          <div className="flex gap-2 mb-3 flex-wrap">
-                            {course.tags.slice(0, 2).map(t => (
-                              <span key={t} className="bg-white/5 text-gray-400 text-xs rounded-full px-2 py-0.5">
-                                {t}
-                              </span>
-                            ))}
-                          </div>
+                          
+                          {/* Watch Time */}
+                          <p className="text-gray-400 text-xs mb-2">
+                            ⏱️ Watched: {formatWatchTime(courseProgress?.watchedTime || 0)}
+                          </p>
+
                           <div className="w-full bg-white/10 rounded-full h-1.5 mb-2">
                             <div
                               className={`${course.color} h-1.5 rounded-full transition-all`}
                               style={{ width: `${pct}%` }}
                             />
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-500 text-xs">{pct}% complete</span>
+                          <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                            <span>{pct}% complete</span>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex gap-2">
                             <button
-                              onClick={() => continueLesson(course.id)}
-                              className="text-purple-400 text-xs font-medium hover:underline"
+                              onClick={() => resumeCourse(course.id)}
+                              className="flex-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors flex items-center justify-center gap-1"
                             >
-                              {pct >= 100 ? '✓ Completed' : 'Continue →'}
+                              <Play size={12} /> Resume
+                            </button>
+                            <button
+                              onClick={() => resetCourse(course.id)}
+                              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors flex items-center justify-center gap-1"
+                            >
+                              <RotateCcw size={12} /> Restart
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Active Courses - Currently Learning Section */}
+            {enrolled.size > 0 && (
+              <div className="mb-8">
+                <h2 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+                  <TrendingUp size={20} className="text-green-400" />
+                  Currently Learning
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {allCourses.map(course => {
+                    if (!enrolled.has(course.id)) return null;
+                    const courseProgress = progress[course.id];
+                    if (!courseProgress || courseProgress.status === 'paused') return null;
+                    
+                    const pct = courseProgress.progress ?? 0;
+                    return (
+                      <div
+                        key={course.id}
+                        className="bg-[#1a1a2e] border border-white/5 rounded-2xl overflow-hidden hover:border-green-500/30 transition-all cursor-pointer group"
+                      >
+                        <div className={`${course.color} h-24 flex items-center justify-center relative overflow-hidden`}>
+                          <div className="absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
+                          <Play size={32} className="text-white opacity-60" />
+                        </div>
+                        <div className="p-4">
+                          <h3 className="text-white font-semibold text-sm mb-1 group-hover:text-green-300 transition-colors">
+                            {course.title}
+                          </h3>
+                          <p className="text-gray-500 text-xs mb-2">{course.instructor}</p>
+
+                          {/* Watch Time */}
+                          <p className="text-gray-400 text-xs mb-2">
+                            ⏱️ Watched: {formatWatchTime(courseProgress?.watchedTime || 0)}
+                          </p>
+
+                          <div className="w-full bg-white/10 rounded-full h-1.5 mb-2">
+                            <div
+                              className={`${course.color} h-1.5 rounded-full transition-all`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                            <span>{pct}% complete</span>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => openCoursePlayer(course)}
+                              className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors flex items-center justify-center gap-1"
+                            >
+                              <Play size={12} /> Continue
+                            </button>
+                            <button
+                              onClick={() => pauseCourse(course.id)}
+                              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors flex items-center justify-center gap-1"
+                            >
+                              <Pause size={12} /> Pause
                             </button>
                           </div>
                         </div>
@@ -403,11 +633,14 @@ export default function Courses() {
                   </div>
                   <p className="text-white font-semibold mb-2">No Courses Available Yet</p>
                   <p className="text-gray-400 text-sm mb-4">
-                    Make sure your learning profile is complete to get personalized YouTube course recommendations.
+                    Set up your learning profile to get AI-personalized YouTube course recommendations.
                   </p>
-                  <p className="text-gray-500 text-xs">
-                    💡 Tip: Complete your onboarding to see AI-recommended courses.
-                  </p>
+                  <button
+                    onClick={() => setShowOnboarding(true)}
+                    className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-colors"
+                  >
+                    <Sparkles size={16} /> Set Up Learning Profile
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -435,21 +668,21 @@ export default function Courses() {
                             className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
                             loading="lazy"
                           />
-                          {/* Progress Ring for Enrolled */}
-                          {isEnrolled && (
+                        {/* Progress Ring for Enrolled */}
+                          {enrolled.has(course.id) && (
                             <svg className="absolute top-2 right-2 w-8 h-8 z-20" viewBox="0 0 36 36">
                               <circle cx="18" cy="18" r="16" fill="none" stroke="#22223b" strokeWidth="4" />
                               <circle
                                 cx="18" cy="18" r="16"
                                 fill="none"
-                                stroke="#a78bfa"
+                                stroke={progress[course.id]?.status === 'paused' ? '#fb923c' : '#a78bfa'}
                                 strokeWidth="4"
                                 strokeDasharray={100}
-                                strokeDashoffset={100 - (progress[course.id] ?? 0)}
+                                strokeDashoffset={100 - (progress[course.id]?.progress ?? 0)}
                                 strokeLinecap="round"
                                 style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(.4,2,.6,1)' }}
                               />
-                              <text x="18" y="22" textAnchor="middle" fontSize="10" fill="#fff">{progress[course.id] ?? 0}%</text>
+                              <text x="18" y="22" textAnchor="middle" fontSize="10" fill="#fff">{progress[course.id]?.progress ?? 0}%</text>
                             </svg>
                           )}
                           {/* Platform color bar at bottom of image */}
@@ -499,10 +732,10 @@ export default function Courses() {
                           </div>
                           {isEnrolled ? (
                             <button
-                              onClick={e => { e.stopPropagation(); continueLesson(course.id); }}
-                              className="w-full bg-green-600 hover:bg-green-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors shadow-md hover:scale-[1.03] active:scale-95"
+                              onClick={e => { e.stopPropagation(); openCoursePlayer(course); }}
+                              className="w-full bg-green-600 hover:bg-green-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors shadow-md hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-1"
                             >
-                              Continue Learning
+                              <Play size={12} /> Continue Learning
                             </button>
                           ) : (
                             <button
@@ -540,15 +773,15 @@ export default function Courses() {
         )}
       </div>
 
-      {/* Course Detail Modal */}
-      {selectedCourse && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1a1a2e] border border-purple-500/30 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      {/* Course Player Modal */}
+      {playerOpen && selectedCourse && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a2e] border border-purple-500/30 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className={`bg-linear-to-r ${getPlatformInfo(selectedCourse.platform).bgGradient} p-6 relative`}>
               <button
-                onClick={() => setSelectedCourse(null)}
-                className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors"
+                onClick={closeCoursePlayer}
+                className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors z-10"
               >
                 <X size={20} className="text-white" />
               </button>
@@ -561,53 +794,77 @@ export default function Courses() {
               </div>
             </div>
 
-            {/* Content */}
+            {/* Player Content */}
             <div className="p-6 space-y-6">
-              {/* Platform Info */}
+              {/* Video Embed Section */}
+              <div className="bg-black rounded-xl overflow-hidden aspect-video">
+                <iframe
+                  width="100%"
+                  height="100%"
+                  src={`https://www.youtube.com/embed/${extractYouTubeId(selectedCourse.url)}`}
+                  title={selectedCourse.title}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              </div>
+
+              {/* Watch Time & Progress Tracking */}
+              {enrolled.has(selectedCourse.id) && progress[selectedCourse.id] && (
+                <div className="bg-linear-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/30 rounded-xl p-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-gray-400 text-sm mb-1">Watch Time</p>
+                      <p className="text-white font-bold text-lg">{formatWatchTime(progress[selectedCourse.id].watchedTime)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm mb-1">Progress</p>
+                      <p className="text-white font-bold text-lg">{progress[selectedCourse.id].progress}%</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm mb-1">Status</p>
+                      <p className="text-white font-bold text-lg capitalize">{progress[selectedCourse.id].status}</p>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="mt-4">
+                    <div className="w-full bg-white/10 rounded-full h-2">
+                      <div
+                        className={`${selectedCourse.color} h-2 rounded-full transition-all`}
+                        style={{ width: `${progress[selectedCourse.id].progress}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Course Details */}
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                 <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
                   <ExternalLink size={18} className="text-purple-400" />
-                  Where to Learn
+                  Course Information
                 </h3>
-                <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <p className="text-gray-400 text-sm mb-2">Platform</p>
-                    <p className="text-white font-semibold text-lg">{getPlatformInfo(selectedCourse.platform).name}</p>
+                    <p className="text-gray-400 text-sm mb-1">Instructor</p>
+                    <p className="text-white font-semibold">{selectedCourse.instructor}</p>
                   </div>
                   <div>
-                    <p className="text-gray-400 text-sm mb-2">Course Link</p>
-                    <a
-                      href={selectedCourse.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-400 hover:text-purple-300 font-semibold flex items-center gap-2 break-all"
-                    >
-                      {selectedCourse.url}
-                      <ExternalLink size={16} />
-                    </a>
+                    <p className="text-gray-400 text-sm mb-1">Duration</p>
+                    <p className="text-white font-semibold">{selectedCourse.duration}</p>
                   </div>
-                </div>
-              </div>
-
-              {/* Course Details */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <p className="text-gray-400 text-sm mb-1">Instructor</p>
-                  <p className="text-white font-semibold">{selectedCourse.instructor}</p>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <p className="text-gray-400 text-sm mb-1">Duration</p>
-                  <p className="text-white font-semibold">{selectedCourse.duration}</p>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <p className="text-gray-400 text-sm mb-1">Difficulty</p>
-                  <p className="text-white font-semibold">{selectedCourse.difficulty}</p>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <p className="text-gray-400 text-sm mb-1">Rating</p>
-                  <div className="flex items-center gap-2">
-                    <Star size={16} className="text-yellow-400 fill-yellow-400" />
-                    <p className="text-white font-semibold">{selectedCourse.rating}</p>
+                  <div>
+                    <p className="text-gray-400 text-sm mb-1">Difficulty</p>
+                    <p className="text-white font-semibold">{selectedCourse.difficulty}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm mb-1">Rating</p>
+                    <div className="flex items-center gap-2">
+                      <Star size={16} className="text-yellow-400 fill-yellow-400" />
+                      <p className="text-white font-semibold">{selectedCourse.rating}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -632,16 +889,26 @@ export default function Courses() {
                 </div>
               )}
 
-              {/* Action Button */}
-              <a
-                href={selectedCourse.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
-              >
-                Go to {getPlatformInfo(selectedCourse.platform).name}
-                <ExternalLink size={18} />
-              </a>
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <a
+                  href={selectedCourse.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  Open on {getPlatformInfo(selectedCourse.platform).name}
+                  <ExternalLink size={18} />
+                </a>
+                {enrolled.has(selectedCourse.id) && progress[selectedCourse.id]?.status === 'in-progress' && (
+                  <button
+                    onClick={() => pauseCourse(selectedCourse.id)}
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center gap-2"
+                  >
+                    <Pause size={18} /> Pause
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -649,3 +916,10 @@ export default function Courses() {
     </div>
   );
 }
+
+// Helper function to extract YouTube video ID from URL
+function extractYouTubeId(url: string): string {
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
+  return match ? match[1] : '';
+}
+

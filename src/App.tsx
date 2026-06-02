@@ -19,6 +19,8 @@ import StartupGuide from './pages/StartupGuide';
 import HelpSupport from './pages/HelpSupport';
 import Onboarding from './pages/Onboarding';
 import CourseOnboarding from './courses/CourseOnboarding';
+import AdminApp from './admin/AdminApp';
+import AdminLogin from './admin/AdminLogin';
 
 const PROTECTED_PAGES: Page[] = [
   'dashboard', 'ai-chat', 'mood-tracker', 'study-planner',
@@ -27,11 +29,21 @@ const PROTECTED_PAGES: Page[] = [
 ];
 
 export default function App() {
-  const { user, isLoggedIn } = useUser();
+  const { user, isLoggedIn, logout } = useUser();
   const [currentPage, setCurrentPage] = useState<Page>('landing');
   const [aiToolsOpen, setAiToolsOpen] = useState(false);
   const [showCourseOnboarding, setShowCourseOnboarding] = useState(false);
   const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
+
+  // Check admin authentication on mount
+  useEffect(() => {
+    const adminToken = localStorage.getItem('adminToken');
+    if (adminToken && currentPage === 'admin') {
+      setIsAdminAuthenticated(true);
+    }
+  }, [currentPage]);
 
   useEffect(() => {
     if (user.darkMode) {
@@ -45,18 +57,36 @@ export default function App() {
     document.documentElement.classList.add('dark');
   }, []);
 
-  // Check if user needs course onboarding only once after login
+  // Check if user needs course onboarding - only for new users
   useEffect(() => {
-    if (isLoggedIn && !hasCheckedOnboarding) {
-      const userProfile = (user as any).profile;
-      if (userProfile && !userProfile.courseOnboardingCompleted) {
+    if (isLoggedIn && !hasCheckedOnboarding && isNewUser) {
+      const profile = localStorage.getItem('userLearningProfile');
+      if (!profile) {
         setShowCourseOnboarding(true);
       }
       setHasCheckedOnboarding(true);
     }
-  }, [isLoggedIn, hasCheckedOnboarding, user]);
+    
+    if (!isLoggedIn) {
+      setHasCheckedOnboarding(false);
+      setShowCourseOnboarding(false);
+      setIsNewUser(false);
+    }
+  }, [isLoggedIn, hasCheckedOnboarding, isNewUser]);
 
   const navigate = (page: Page) => {
+    // Admin page requires separate authentication
+    if (page === 'admin') {
+      const adminToken = localStorage.getItem('adminToken');
+      if (!adminToken) {
+        setIsAdminAuthenticated(false);
+      } else {
+        setIsAdminAuthenticated(true);
+      }
+      setCurrentPage(page);
+      return;
+    }
+
     // Block access to protected pages if not logged in
     if (PROTECTED_PAGES.includes(page) && !isLoggedIn) {
       setCurrentPage('login');
@@ -68,7 +98,8 @@ export default function App() {
     }
   };
 
-  if (showCourseOnboarding) {
+  // Only show CourseOnboarding if logged in and on a non-public page
+  if (showCourseOnboarding && isLoggedIn && !['landing', 'signup', 'login'].includes(currentPage)) {
     return (
       <CourseOnboarding
         onComplete={() => {
@@ -84,9 +115,22 @@ export default function App() {
   }
 
   if (currentPage === 'landing') return <LandingPage onNavigate={navigate} />;
-  if (currentPage === 'signup') return <SignupPage onNavigate={navigate} />;
+  if (currentPage === 'signup') return <SignupPage onNavigate={navigate} onNewUserSignup={() => setIsNewUser(true)} />;
   if (currentPage === 'login') return <LoginPage onNavigate={navigate} />;
   if (currentPage === 'onboarding') return <Onboarding onNavigate={navigate} />;
+  
+  // Admin panel with separate authentication
+  if (currentPage === 'admin') {
+    if (!isAdminAuthenticated) {
+      return <AdminLogin onLoginSuccess={() => setIsAdminAuthenticated(true)} />;
+    }
+    return <AdminApp onLogout={() => {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      setIsAdminAuthenticated(false);
+      navigate('landing');
+    }} />;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>

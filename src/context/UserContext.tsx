@@ -14,6 +14,7 @@ export interface UserProfile {
   location: string;
   notifications: { email: boolean; push: boolean; reminders: boolean };
   darkMode: boolean;
+  isGoogleUser?: boolean;
   _id?: string;
 }
 
@@ -63,7 +64,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         try {
           const userData = await userService.getProfile();
           const avatar = userData.name ? userData.name.charAt(0).toUpperCase() : 'U';
-          setUser({ ...defaultProfile, ...userData, avatar });
+          setUser({ ...defaultProfile, ...userData, avatar, isGoogleUser: !!userData.isGoogleUser });
           setIsLoggedIn(true);
         } catch (error) {
           localStorage.removeItem('authToken');
@@ -119,12 +120,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setSuccessMessage(null);
     try {
       const { name, email } = await signInWithGoogle();
-      // Send name+email to backend — backend creates/finds user and returns JWT
       const response = await authService.googleLogin(email, name);
       if (response.token) localStorage.setItem('authToken', response.token);
       const userData = response.user || { name, email };
       const avatar = (userData.name || name || email).charAt(0).toUpperCase();
-      setUser({ ...defaultProfile, ...userData, name: userData.name || name, email: userData.email || email, avatar });
+      setUser({ ...defaultProfile, ...userData, name: userData.name || name, email: userData.email || email, avatar, isGoogleUser: true });
       setIsLoggedIn(true);
       setSuccessMessage('Signed in with Google successfully!');
       // isNewUser from backend — true if just created, false if existing user

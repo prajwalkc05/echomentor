@@ -3,18 +3,23 @@ import type { Presentation, Slide, ThemeId, AppScreen, GenerationConfig } from '
 import {
   savePresentationToStorage,
   storedToPresentation,
+  getRecentPresentations,
 } from '../../services/slideai/presentationPersistence';
 
 const MAX_HISTORY = 50;
-const STORAGE_KEY = 'echomentor_slideai_presentations';
 
 function loadPresentationsFromLocal(): Presentation[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(storedToPresentation);
+    const recent = getRecentPresentations(30);
+    return recent.map(meta => ({
+      id: meta.id,
+      title: meta.title,
+      description: '',
+      theme: meta.template,
+      slides: [],
+      createdAt: new Date(meta.createdAt),
+      updatedAt: new Date(meta.updatedAt),
+    }));
   } catch {
     return [];
   }

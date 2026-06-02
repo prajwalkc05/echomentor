@@ -15,4 +15,5 @@ export type Page =
   | 'settings'
   | 'help'
   | 'code-assistant'
-  | 'ppt-generator';
+  | 'ppt-generator'
+  | 'admin';
