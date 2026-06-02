@@ -5,6 +5,7 @@ import { StatCard, PageHeader, Card, AdminPage } from '../components/AdminUI';
 import api from '../../utils/api';
 
 const COLORS = ['#6366f1', '#8B5CF6', '#a855f7'];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';
 
 const ACTIVITY_ICONS: Record<string, any> = {
   join: Users, resume: FileText, ppt: Presentation, mood: Smile, ai: Bot,
@@ -20,10 +21,10 @@ export default function AdminDashboard() {
 
     const fetchData = async () => {
       try {
-        const dashboardRes = await fetch(`${api.baseURL}/api/admin/dashboard`, {
+        const dashboardRes = await fetch(`${API_BASE_URL}/api/admin/dashboard`, {
           headers: { Authorization: `Bearer ${adminToken}` }
         });
-        const chartsRes = await fetch(`${api.baseURL}/api/admin/charts`, {
+        const chartsRes = await fetch(`${API_BASE_URL}/api/admin/charts`, {
           headers: { Authorization: `Bearer ${adminToken}` }
         });
 

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Shield, Lock, Mail, AlertCircle } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';
+
 interface AdminLoginProps {
   onLoginSuccess: () => void;
 }
@@ -17,7 +19,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
     setLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

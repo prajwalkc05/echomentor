@@ -3,6 +3,8 @@ import { Search, X, Trash2, RefreshCw } from 'lucide-react';
 import { PageHeader, Badge, Table, ActionBtn, Input, AdminPage, Card } from '../components/AdminUI';
 import api from '../../utils/api';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';
+
 export default function AdminUsers() {
   const [users, setUsers] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -18,7 +20,7 @@ export default function AdminUsers() {
 
     try {
       const params = new URLSearchParams({ limit: '50', ...(search && { search }), ...(planFilter && { plan: planFilter }) });
-      const res = await fetch(`${api.baseURL}/api/admin/users?${params}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/users?${params}`, {
         headers: { Authorization: `Bearer ${adminToken}` }
       });
       if (res.ok) {
@@ -42,7 +44,7 @@ export default function AdminUsers() {
     if (!adminToken) return;
 
     try { 
-      await fetch(`${api.baseURL}/api/admin/users/${id}`, {
+      await fetch(`${API_BASE_URL}/api/admin/users/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${adminToken}` }
       }); 
@@ -55,7 +57,7 @@ export default function AdminUsers() {
     if (!adminToken) return;
 
     try { 
-      await fetch(`${api.baseURL}/api/admin/users/${userId}/subscription`, {
+      await fetch(`${API_BASE_URL}/api/admin/users/${userId}/subscription`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
