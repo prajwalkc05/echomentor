@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Users, TrendingUp, DollarSign, UserCheck, UserX, Activity, Bot, FileText, Presentation, Smile } from 'lucide-react';
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { StatCard, PageHeader, Card, AdminPage } from '../components/AdminUI';
-import api from '../../utils/api';
 
 const COLORS = ['#6366f1', '#8B5CF6', '#a855f7'];
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';

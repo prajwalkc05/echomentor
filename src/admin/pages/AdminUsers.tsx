@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Search, X, Trash2, RefreshCw } from 'lucide-react';
 import { PageHeader, Badge, Table, ActionBtn, Input, AdminPage, Card } from '../components/AdminUI';
-import api from '../../utils/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';
 
