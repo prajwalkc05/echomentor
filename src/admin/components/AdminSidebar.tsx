@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, CreditCard, BarChart2, Bot, FileText, Presentation, BookOpen, Rocket, Briefcase, Bell, Tag, Settings, Shield, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Bot, FileText, Presentation, BookOpen, Rocket, Briefcase, Bell, Tag, Settings, Shield, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { AdminPage } from '../AdminApp';
 import { useState } from 'react';
 
@@ -6,7 +6,6 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'users', label: 'User Management', icon: Users },
   { id: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
-  { id: 'analytics', label: 'Analytics', icon: BarChart2 },
   { id: 'ai-usage', label: 'AI Usage', icon: Bot },
   { id: 'resume', label: 'Resume Builder', icon: FileText },
   { id: 'ppt', label: 'PPT Generator', icon: Presentation },
