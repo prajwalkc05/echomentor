@@ -5,6 +5,7 @@ import { useUser } from '../context/UserContext';
 
 interface LoginPageProps {
   onNavigate: (page: Page) => void;
+  onAdminLogin?: () => void;
 }
 
 export default function LoginPage({ onNavigate }: LoginPageProps) {
@@ -20,6 +21,22 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
     setError('');
     try {
       await login(email.trim(), password);
+      const adminEmail = 'admin@echomentor.com';
+      if (email.trim() === adminEmail) {
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';
+        const adminResponse = await fetch(`${API_BASE_URL}/api/admin/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim(), password }),
+        });
+        if (adminResponse.ok) {
+          const adminData = await adminResponse.json();
+          localStorage.setItem('adminToken', adminData.token);
+          localStorage.setItem('adminUser', JSON.stringify(adminData.admin));
+          onNavigate('admin');
+          return;
+        }
+      }
       onNavigate('dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');

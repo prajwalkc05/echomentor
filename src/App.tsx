@@ -20,7 +20,6 @@ import HelpSupport from './pages/HelpSupport';
 import Onboarding from './pages/Onboarding';
 import CourseOnboarding from './courses/CourseOnboarding';
 import AdminApp from './admin/AdminApp';
-import AdminLogin from './admin/AdminLogin';
 
 const PROTECTED_PAGES: Page[] = [
   'dashboard', 'ai-chat', 'mood-tracker', 'study-planner',
@@ -122,7 +121,7 @@ export default function App() {
   // Admin panel with separate authentication
   if (currentPage === 'admin') {
     if (!isAdminAuthenticated) {
-      return <AdminLogin onLoginSuccess={() => setIsAdminAuthenticated(true)} />;
+      return <LandingPage onNavigate={navigate} />;
     }
     return <AdminApp onLogout={() => {
       localStorage.removeItem('adminToken');
