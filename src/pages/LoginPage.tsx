@@ -5,7 +5,6 @@ import { useUser } from '../context/UserContext';
 
 interface LoginPageProps {
   onNavigate: (page: Page) => void;
-  onAdminLogin?: () => void;
 }
 
 export default function LoginPage({ onNavigate }: LoginPageProps) {
@@ -20,23 +19,32 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
     if (!email.trim() || !password) { setError('Please enter your email and password.'); return; }
     setError('');
     try {
-      await login(email.trim(), password);
       const adminEmail = 'admin@echomentor.com';
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';
+
+      // Check if admin email
       if (email.trim() === adminEmail) {
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';
         const adminResponse = await fetch(`${API_BASE_URL}/api/admin/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email.trim(), password }),
         });
+
         if (adminResponse.ok) {
           const adminData = await adminResponse.json();
           localStorage.setItem('adminToken', adminData.token);
           localStorage.setItem('adminUser', JSON.stringify(adminData.admin));
           onNavigate('admin');
           return;
+        } else {
+          const errorData = await adminResponse.json();
+          setError(errorData.message || 'Invalid admin credentials');
+          return;
         }
       }
+
+      // Regular user login
+      await login(email.trim(), password);
       onNavigate('dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
