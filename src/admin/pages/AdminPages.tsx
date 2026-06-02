@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { PageHeader, AdminPage, SectionCard, Input, ActionBtn } from '../components/AdminUI';
-import { Trash2, Edit2, Plus, X } from 'lucide-react';
+import { Trash2, Edit2 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';
 
@@ -98,7 +98,6 @@ export function AdminCourses() {
     price: '',
     description: '',
   });
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchCourses();
@@ -121,7 +120,6 @@ export function AdminCourses() {
 
   const handleAddCourse = async () => {
     if (!formData.title.trim()) return;
-    setLoading(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
       const endpoint = editingId ? `${API_BASE_URL}/api/admin/courses/${editingId}` : `${API_BASE_URL}/api/admin/courses`;
@@ -144,8 +142,6 @@ export function AdminCourses() {
       }
     } catch (error) {
       console.error('Failed to save course:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -237,7 +233,6 @@ export function AdminOpportunities() {
     salary: '',
     description: '',
   });
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchOpportunities();
@@ -260,7 +255,6 @@ export function AdminOpportunities() {
 
   const handleAddOpportunity = async () => {
     if (!formData.role.trim()) return;
-    setLoading(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
       const endpoint = editingId ? `${API_BASE_URL}/api/admin/opportunities/${editingId}` : `${API_BASE_URL}/api/admin/opportunities`;
@@ -281,10 +275,8 @@ export function AdminOpportunities() {
         setEditingId(null);
         fetchOpportunities();
       }
-    } catch (error) {
-      console.error('Failed to save opportunity:', error);
     } finally {
-      setLoading(false);
+      fetchOpportunities();
     }
   };
 
