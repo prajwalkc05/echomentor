@@ -341,9 +341,7 @@ export default function AiChat({ onNavigate }: AiChatProps) {
       console.error('Send message error:', error);
       const errorMsg: Message = { 
         role: 'ai', 
-        text: error.message === 'Authentication required. Please log in to use this feature.' 
-          ? '❌ You need to log in to use this feature. Please log in first.'
-          : error.message || 'Sorry, I encountered an error. Please try again.', 
+        text: error.message || 'Sorry, I encountered an error. Please try again.', 
         time: getNow() 
       };
       setSessions(prev =>

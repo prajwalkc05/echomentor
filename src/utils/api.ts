@@ -6,12 +6,9 @@ if (!import.meta.env.VITE_API_BASE_URL) {
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('authToken');
-  if (!token) {
-    throw new Error('Authentication required. Please log in to use this feature.');
-  }
   return {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
+    ...(token && { 'Authorization': `Bearer ${token}` }),
   };
 };
 

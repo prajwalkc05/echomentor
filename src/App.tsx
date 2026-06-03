@@ -86,11 +86,7 @@ export default function App() {
       return;
     }
 
-    // Block access to protected pages if not logged in
-    if (PROTECTED_PAGES.includes(page) && !isLoggedIn) {
-      setCurrentPage('login');
-      return;
-    }
+    // Allow access to all pages - let backend handle auth
     setCurrentPage(page);
     if (['ai-chat', 'ppt-generator', 'code-assistant'].includes(page)) {
       setAiToolsOpen(true);
