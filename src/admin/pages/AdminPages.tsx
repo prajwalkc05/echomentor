@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PageHeader, AdminPage, SectionCard, Input, ActionBtn } from '../components/AdminUI';
 import { Trash2, Edit2 } from 'lucide-react';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';
+import { adminApi } from '../utils/adminApi';
 
 export function AdminSubscriptions() {
   return (
@@ -24,62 +23,177 @@ export function AdminSubscriptions() {
 }
 
 export function AdminAIUsage() {
+  const [stats, setStats] = useState({
+    totalRequests: 0,
+    todayRequests: 0,
+    tokenUsage: 0,
+    cost: 0,
+    recentLogs: [] as any[]
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAIUsage();
+  }, []);
+
+  const fetchAIUsage = async () => {
+    try {
+      const data = await adminApi.get('/api/admin/ai-usage');
+      setStats(data || {});
+    } catch (error) {
+      console.error('Failed to fetch AI usage:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AdminPage>
       <PageHeader title="AI Usage Monitor" subtitle="Track API requests and costs" />
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          ['Total Requests', '12,450'],
-          ['Today', '340'],
-          ['Token Usage', '2.4M'],
-          ['Cost', '₹1,240'],
+          ['Total Requests', stats.totalRequests || '0'],
+          ['Today', stats.todayRequests || '0'],
+          ['Token Usage', `${(stats.tokenUsage || 0).toLocaleString()}M`],
+          ['Cost', `₹${(stats.cost || 0).toLocaleString()}`],
         ].map(([l, v]) => (
           <div key={l} className="bg-[#0F172A] border border-white/5 rounded-2xl p-5">
             <p className="text-gray-500 text-xs mb-1">{l}</p>
-            <p className="text-white text-2xl font-bold">{v}</p>
+            <p className="text-white text-2xl font-bold">{loading ? '—' : v}</p>
           </div>
         ))}
       </div>
       <SectionCard title="Recent AI Requests">
-        <p className="text-gray-500 text-sm">Request logs will appear here</p>
+        {stats.recentLogs && stats.recentLogs.length > 0 ? (
+          <div className="space-y-2">
+            {stats.recentLogs.slice(0, 5).map((log: any, i: number) => (
+              <div key={i} className="p-2 bg-white/5 rounded-lg text-sm text-gray-300">
+                <p>{log.user || 'Unknown'} - {log.action || 'Request'}</p>
+                <p className="text-xs text-gray-500">{log.timestamp || 'Just now'}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 text-sm">No recent requests yet</p>
+        )}
       </SectionCard>
     </AdminPage>
   );
 }
 
 export function AdminResume() {
+  const [stats, setStats] = useState({
+    totalResumes: 0,
+    todayResumes: 0,
+    mostUsedTemplate: 'Template 1',
+    downloads: 0,
+    recentActivity: [] as any[]
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchResumeStats();
+  }, []);
+
+  const fetchResumeStats = async () => {
+    try {
+      const data = await adminApi.get('/api/admin/resume-analytics');
+      setStats(data || {});
+    } catch (error) {
+      console.error('Failed to fetch resume stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AdminPage>
       <PageHeader title="Resume Analytics" subtitle="Track resume generation and downloads" />
       <div className="grid grid-cols-4 gap-4 mb-6">
-        {[['Total Resumes', '842'], ['Today', '28'], ['Most Used', 'Template 2'], ['Downloads', '1,204']].map(([l, v]) => (
+        {[
+          ['Total Resumes', stats.totalResumes || '0'],
+          ['Today', stats.todayResumes || '0'],
+          ['Most Used', stats.mostUsedTemplate || 'Template 1'],
+          ['Downloads', stats.downloads || '0'],
+        ].map(([l, v]) => (
           <div key={l} className="bg-[#0F172A] border border-white/5 rounded-2xl p-5">
             <p className="text-gray-500 text-xs mb-1">{l}</p>
-            <p className="text-white text-2xl font-bold">{v}</p>
+            <p className="text-white text-2xl font-bold">{loading ? '—' : v}</p>
           </div>
         ))}
       </div>
       <SectionCard title="Recent Resumes">
-        <p className="text-gray-500 text-sm">Resume activity will appear here</p>
+        {stats.recentActivity && stats.recentActivity.length > 0 ? (
+          <div className="space-y-2">
+            {stats.recentActivity.slice(0, 5).map((activity: any, i: number) => (
+              <div key={i} className="p-2 bg-white/5 rounded-lg text-sm text-gray-300">
+                <p>{activity.user || 'User'} created resume</p>
+                <p className="text-xs text-gray-500">{activity.time || 'Recently'}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 text-sm">No recent activity</p>
+        )}
       </SectionCard>
     </AdminPage>
   );
 }
 
 export function AdminPPT() {
+  const [stats, setStats] = useState({
+    totalPPTs: 0,
+    todayPPTs: 0,
+    avgSlides: 0,
+    downloads: 0,
+    recentActivity: [] as any[]
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPPTStats();
+  }, []);
+
+  const fetchPPTStats = async () => {
+    try {
+      const data = await adminApi.get('/api/admin/ppt-analytics');
+      setStats(data || {});
+    } catch (error) {
+      console.error('Failed to fetch PPT stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AdminPage>
       <PageHeader title="PPT Analytics" subtitle="Presentations generated" />
       <div className="grid grid-cols-4 gap-4 mb-6">
-        {[['Total PPTs', '524'], ['Today', '15'], ['Avg Slides', '12'], ['Downloads', '680']].map(([l, v]) => (
+        {[
+          ['Total PPTs', stats.totalPPTs || '0'],
+          ['Today', stats.todayPPTs || '0'],
+          ['Avg Slides', stats.avgSlides || '0'],
+          ['Downloads', stats.downloads || '0'],
+        ].map(([l, v]) => (
           <div key={l} className="bg-[#0F172A] border border-white/5 rounded-2xl p-5">
             <p className="text-gray-500 text-xs mb-1">{l}</p>
-            <p className="text-white text-2xl font-bold">{v}</p>
+            <p className="text-white text-2xl font-bold">{loading ? '—' : v}</p>
           </div>
         ))}
       </div>
       <SectionCard title="Recent Presentations">
-        <p className="text-gray-500 text-sm">Presentation activity will appear here</p>
+        {stats.recentActivity && stats.recentActivity.length > 0 ? (
+          <div className="space-y-2">
+            {stats.recentActivity.slice(0, 5).map((activity: any, i: number) => (
+              <div key={i} className="p-2 bg-white/5 rounded-lg text-sm text-gray-300">
+                <p>{activity.user || 'User'} created presentation: {activity.title || 'Untitled'}</p>
+                <p className="text-xs text-gray-500">{activity.time || 'Recently'}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 text-sm">No recent presentations</p>
+        )}
       </SectionCard>
     </AdminPage>
   );
