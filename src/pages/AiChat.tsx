@@ -30,14 +30,14 @@ interface UploadedFile {
 }
 
 interface ChatSession {
-  id: number;
+  id: string;
   title: string;
   time: string;
   section: string;
   messages: Message[];
-  // Extracted text from all files uploaded in this session — persisted in localStorage
   fileContext: string;
   uploadedFiles: UploadedFile[];
+  isLocal?: boolean;
 }
 
 const aiTools: { icon: React.ReactElement; bg: string; title: string; desc: string; action: 'navigate' | 'prompt'; page?: Page; prompt?: string }[] = [
@@ -61,16 +61,11 @@ function getNow() {
 }
 
 export default function AiChat({ onNavigate }: AiChatProps) {
-  const { sendChatMessage, extractFiles, fetchChatHistory, deleteChatMessage, clearAllChatHistory } = useAppData();
-  const { isLoggedIn } = useUser();
-  const [sessions, setSessions] = useState<ChatSession[]>(() => {
-    const saved = storage.getJSON<ChatSession[]>('aiChatSessions');
-    return saved ?? [];
-  });
-  const [activeId, setActiveId] = useState<number | null>(() => {
-    const saved = storage.get('aiChatActiveId');
-    return saved ? Number(saved) : null;
-  });
+  const { sendChatMessage, extractFiles, fetchChatHistory, fetchSessionMessages, deleteChatSession, clearAllChatHistory } = useAppData();
+  const { isLoggedIn, user } = useUser();
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [input, setInput] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -89,64 +84,69 @@ export default function AiChat({ onNavigate }: AiChatProps) {
 
   const activeSession = sessions.find(s => s.id === activeId) ?? null;
 
-  // Persist sessions to localStorage on every change
+  // Backend is single source of truth — clear stale localStorage on mount
   useEffect(() => {
-    if (sessions.length === 0) storage.remove('aiChatSessions');
-    else storage.setJSON('aiChatSessions', sessions);
-  }, [sessions]);
-
-  // Persist activeId to localStorage on every change
-  useEffect(() => {
-    if (activeId === null) storage.remove('aiChatActiveId');
-    else storage.set('aiChatActiveId', String(activeId));
-  }, [activeId]);
-
-  // Fetch backend history once on mount (only to seed if nothing in localStorage)
-  useEffect(() => {
-    fetchChatHistory().catch(() => {});
+    storage.remove('aiChatSessions');
+    storage.remove('aiChatActiveId');
   }, []);
+
+  // Load sessions from backend on mount
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    fetchChatHistory().then((backendSessions) => {
+      const mapped: ChatSession[] = backendSessions.map(bs => ({
+        id: bs.id as any,
+        title: bs.title || 'Chat',
+        time: '',
+        section: 'Today',
+        messages: [],
+        fileContext: '',
+        uploadedFiles: [],
+      }));
+      setSessions(mapped);
+    }).catch(() => {});
+  }, [isLoggedIn]);
+
+  // Load messages from backend when switching to a session
+  useEffect(() => {
+    if (!activeId || !isLoggedIn) return;
+    // Don't fetch for brand-new local sessions
+    const currentSession = sessionsRef.current.find(s => s.id === activeId);
+    if (currentSession?.isLocal || (currentSession && currentSession.messages.length > 0)) return;
+    setLoadingMessages(true);
+    fetchSessionMessages(activeId).then((chats) => {
+      setLoadingMessages(false);
+      if (!chats.length) return;
+      setSessions(prev => prev.map(s => {
+        if (s.id !== activeId) return s;
+        const messages: Message[] = chats.flatMap((c: any) => [
+          { role: 'user' as const, text: c.message, time: new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+          { role: 'ai' as const, text: c.reply, time: new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+        ]);
+        return { ...s, messages };
+      }));
+    }).catch(() => setLoadingMessages(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, isLoggedIn]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeSession?.messages, isTyping]);
 
   const newChat = () => {
-    const id = Date.now();
-    const session: ChatSession = { id, title: 'New Chat', time: getNow(), section: 'Today', messages: [], fileContext: '', uploadedFiles: [] };
-    const updatedSessions = [session, ...sessions];
-    setSessions(updatedSessions);
-    storage.setJSON('aiChatSessions', updatedSessions);
+    const id = String(Date.now());
+    const session: ChatSession = { id, title: 'New Chat', time: getNow(), section: 'Today', messages: [], fileContext: '', uploadedFiles: [], isLocal: true };
+    setSessions(prev => [session, ...prev]);
     setActiveId(id);
   };
 
-  const deleteSession = async (e: React.MouseEvent, id: number) => {
+  const deleteSession = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-
-    const sessionToDelete = sessions.find(s => s.id === id);
-    if (sessionToDelete && (sessionToDelete as any).backendId) {
-      try {
-        await deleteChatMessage((sessionToDelete as any).backendId);
-      } catch (error) {
-        console.error('Failed to delete from backend:', error);
-      }
-    }
-
-    // Remove from local sessions
-    const updatedSessions = sessions.filter(s => s.id !== id);
-    setSessions(updatedSessions);
-    
-    // Update localStorage immediately
-    if (updatedSessions.length === 0) {
-      storage.remove('aiChatSessions');
-    } else {
-      storage.setJSON('aiChatSessions', updatedSessions);
-    }
-
-    // If deleting active session, switch to another or clear
-    if (activeId === id) {
-      setActiveId(updatedSessions.length > 0 ? updatedSessions[0].id : null);
-    }
+    try { await deleteChatSession(String(id)); } catch {}
+    const updated = sessions.filter(s => s.id !== id);
+    setSessions(updated);
+    if (activeId === id) setActiveId(updated.length > 0 ? updated[0].id : null);
   };
 
   const clearAllSessions = async () => {
@@ -155,7 +155,6 @@ export default function AiChat({ onNavigate }: AiChatProps) {
     try {
       await clearAllChatHistory();
       setSessions([]);
-      storage.remove('aiChatSessions');
       setActiveId(null);
     } catch (error) {
       console.error('Failed to clear all chats:', error);
@@ -179,10 +178,10 @@ export default function AiChat({ onNavigate }: AiChatProps) {
     // Resolve or create session immediately so we have a sessionId to attach files to
     let sessionId = activeId;
     if (!sessionId) {
-      const id = Date.now();
+      const id = String(Date.now());
       const newSession: ChatSession = {
         id, title: 'New Chat', time: getNow(), section: 'Today',
-        messages: [], fileContext: '', uploadedFiles: [],
+        messages: [], fileContext: '', uploadedFiles: [], isLocal: true,
       };
       setSessions(prev => [newSession, ...prev]);
       setActiveId(id);
@@ -274,7 +273,7 @@ export default function AiChat({ onNavigate }: AiChatProps) {
     // Resolve or create session
     let sessionId = activeId;
     if (!sessionId) {
-      const id = Date.now();
+      const id = String(Date.now());
       const newSession: ChatSession = {
         id,
         title: userText ? generateTitle(userText) : 'New Chat',
@@ -283,6 +282,7 @@ export default function AiChat({ onNavigate }: AiChatProps) {
         messages: [],
         fileContext: '',
         uploadedFiles: [],
+        isLocal: true,
       };
       setSessions(prev => [newSession, ...prev]);
       setActiveId(id);
@@ -301,11 +301,13 @@ export default function AiChat({ onNavigate }: AiChatProps) {
         : undefined,
     };
 
+    // Mark session as no longer local once first message is sent
     setSessions(prev =>
       prev.map(s =>
         s.id === sessionId
           ? {
               ...s,
+              isLocal: false,
               title: s.messages.length === 0 && userText ? generateTitle(userText) : s.title,
               messages: [...s.messages, userMsg],
             }
@@ -324,11 +326,13 @@ export default function AiChat({ onNavigate }: AiChatProps) {
       }));
       if (userText) history.push({ role: 'user', content: userText });
 
-      // Always pass the session's fileContext — backend injects it as system message
+      const sessionTitle = currentSession?.messages.length === 0 && userText ? generateTitle(userText) : currentSession?.title;
       const response = await sendChatMessage(
         userText || 'Analyze the uploaded file.',
         history,
-        sessionFileContext || undefined
+        sessionFileContext || undefined,
+        String(sessionId),
+        sessionTitle
       );
 
       const aiMsg: Message = { role: 'ai', text: response, time: getNow() };
@@ -504,7 +508,15 @@ export default function AiChat({ onNavigate }: AiChatProps) {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
-          {!activeSession || activeSession.messages.length === 0 ? (
+          {loadingMessages ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="flex gap-1">
+                <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          ) : activeId === null ? (
             <div className="max-w-3xl mx-auto">
               <div className="text-center mb-12">
                 <div className="w-16 h-16 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl font-bold mx-auto mb-4">
@@ -547,7 +559,7 @@ export default function AiChat({ onNavigate }: AiChatProps) {
             </div>
           ) : (
             <div className="max-w-3xl mx-auto space-y-6">
-              {activeSession.messages.map((msg, i) => {
+              {activeSession?.messages?.map((msg, i) => {
                 const isEditing = editingMessageId === `${activeId}-${i}`;
                 return (
                   <div key={i} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}>
@@ -677,7 +689,7 @@ export default function AiChat({ onNavigate }: AiChatProps) {
                     </div>
                     {msg.role === 'user' && (
                       <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-sm font-bold shrink-0">
-                        U
+                        {user.avatar || 'U'}
                       </div>
                     )}
                   </div>

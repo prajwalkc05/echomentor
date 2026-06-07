@@ -80,6 +80,7 @@ export default function Courses() {
   const [progress, setProgress] = useState<Record<string, CourseProgress>>({});
   const [userProfile, setUserProfile] = useState<UserLearningProfile | null>(null);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [adminCourses, setAdminCourses] = useState<Course[]>([]);
   const [recommendedCourses, setRecommendedCourses] = useState<Course[]>([]);
   const [recommendedCourseIds, setRecommendedCourseIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -142,12 +143,44 @@ export default function Courses() {
       setShowOnboarding(true);
       setLoading(false);
     }
+    fetchAdminCourses();
   }, []);
 
   const handleOnboardingComplete = (profile: OnboardingProfile) => {
     setUserProfile(profile);
     setShowOnboarding(false);
     loadCourses(profile);
+  };
+
+  const fetchAdminCourses = async () => {
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://echobackend-dexy.onrender.com';
+      const res = await fetch(`${API_BASE}/api/admin/public/courses`);
+      const data = await res.json();
+      const courses: Course[] = (data.courses || []).map((c: any) => ({
+        id: c._id,
+        title: c.title,
+        description: c.description || '',
+        instructor: c.instructor || '',
+        platform: c.platform || 'Admin',
+        platformIcon: '',
+        thumbnail: c.thumbnail || '',
+        difficulty: c.level || 'Beginner',
+        duration: c.duration || '',
+        rating: parseFloat(c.rating) || 0,
+        students: 0,
+        skills: Array.isArray(c.skills) ? c.skills : [],
+        tags: Array.isArray(c.tags) ? c.tags : [],
+        url: c.url || '#',
+        isFree: !c.price || c.price === 'Free',
+        certificateAvailable: false,
+        source: 'admin',
+        color: 'bg-purple-600',
+      }));
+      setAdminCourses(courses);
+    } catch {
+      // silently fail — admin courses are optional
+    }
   };
 
   const enroll = (course: Course) => {
@@ -363,6 +396,67 @@ export default function Courses() {
         )}
         {!loading && (
           <>
+            {/* Admin Curated Courses */}
+            {adminCourses.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-white font-semibold text-lg flex items-center gap-2">
+                    <Award size={20} className="text-yellow-400" />
+                    Featured by EchoMentor
+                  </h2>
+                  <p className="text-gray-400 text-sm">Curated by our team</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {adminCourses.map(course => {
+                    const isEnrolled = enrolled.has(course.id);
+                    return (
+                      <div key={course.id} className="bg-[#1a1a2e] border border-yellow-500/20 rounded-2xl overflow-hidden hover:border-yellow-500/40 transition-all group">
+                        <div className="relative w-full h-32 bg-[#18182f] overflow-hidden">
+                          {course.thumbnail ? (
+                            <img src={course.thumbnail} alt={course.title} className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-purple-900/30">
+                              <BookOpen size={32} className="text-purple-400" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 left-2 bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 text-xs px-2 py-0.5 rounded-full">Featured</div>
+                          <div className="bg-purple-600 absolute bottom-0 left-0 w-full h-2 opacity-80" />
+                        </div>
+                        <div className="p-4">
+                          <h3 className="text-white font-semibold text-sm mb-1 group-hover:text-yellow-300 transition-colors">{course.title}</h3>
+                          <p className="text-gray-500 text-xs mb-1">{course.instructor}{course.platform ? ` · ${course.platform}` : ''}</p>
+                          <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                            {course.duration && <span className="flex items-center gap-1"><Clock size={10} /> {course.duration}</span>}
+                            {course.rating > 0 && <span className="flex items-center gap-1"><Star size={10} className="text-yellow-400" /> {course.rating}</span>}
+                            <span>{course.difficulty}</span>
+                          </div>
+                          {course.tags.length > 0 && (
+                            <div className="flex gap-1 flex-wrap mb-3">
+                              {course.tags.slice(0, 3).map(t => (
+                                <span key={t} className="bg-white/5 text-gray-400 text-xs rounded-full px-2 py-0.5">{t}</span>
+                              ))}
+                            </div>
+                          )}
+                          {isEnrolled ? (
+                            <a href={course.url} target="_blank" rel="noopener noreferrer"
+                              className="w-full bg-green-600 hover:bg-green-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors flex items-center justify-center gap-1">
+                              <ExternalLink size={12} /> Open Course
+                            </a>
+                          ) : (
+                            <a href={course.url} target="_blank" rel="noopener noreferrer"
+                              onClick={() => enroll(course)}
+                              className="w-full bg-yellow-600/80 hover:bg-yellow-600 text-white text-xs font-semibold py-2 rounded-xl transition-colors flex items-center justify-center gap-1">
+                              <ExternalLink size={12} /> Start Learning
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* AI Recommendations Section */}
             {userProfile?.careerGoal && recommendedCourses.length > 0 && (
               <div className="mb-8">

@@ -16,4 +16,5 @@ export type Page =
   | 'help'
   | 'code-assistant'
   | 'ppt-generator'
+  | 'subscription'
   | 'admin';

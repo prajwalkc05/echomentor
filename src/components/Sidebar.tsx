@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, MessageCircle, Smile, Calendar, Wrench, Briefcase,
-  FileText, Rocket, BookOpen, Settings, HelpCircle, ChevronRight, ChevronDown
+  FileText, Rocket, BookOpen, Settings, HelpCircle, ChevronRight, ChevronDown, Zap
 } from 'lucide-react';
 import { Page } from '../types';
 import { useUser } from '../context/UserContext';
@@ -126,8 +126,40 @@ export default function Sidebar({ currentPage, onNavigate, aiToolsOpen, setAiToo
         })}
       </nav>
 
+      {/* Subscription widget */}
+      {(user.subscriptionPlan === 'Pro' || user.subscriptionPlan === 'Premium') ? (
+        <div className="mx-3 mb-3 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center shrink-0">
+            <Zap size={14} className="text-green-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-xs font-semibold">{user.subscriptionPlan} Plan ✓</p>
+            {user.subscriptionData?.endDate && (
+              <p className="text-gray-500 text-xs truncate">
+                Until {new Date(user.subscriptionData.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="mx-3 mb-3">
+          <button
+            onClick={() => onNavigate('subscription')}
+            className="w-full flex items-center gap-2.5 px-3 py-3 rounded-xl bg-gradient-to-r from-purple-600/25 to-indigo-600/25 border border-purple-500/30 hover:border-purple-500/60 hover:from-purple-600/35 hover:to-indigo-600/35 transition-all"
+          >
+            <div className="w-7 h-7 rounded-lg bg-purple-600/40 flex items-center justify-center shrink-0">
+              <Zap size={14} className="text-yellow-400" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-white text-xs font-semibold">Upgrade to Pro</p>
+              <p className="text-purple-400 text-xs">Unlock all features</p>
+            </div>
+          </button>
+        </div>
+      )}
+
       {/* User */}
-      <div className="p-3">
+      <div className="p-3 border-t border-white/5">
         <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-white/5 cursor-pointer" onClick={() => onNavigate('settings')}>
           <div className="w-8 h-8 rounded-full bg-linear-to-br from-pink-400 to-purple-600 flex items-center justify-center text-white text-xs font-bold">{user.avatar}</div>
           <div className="flex-1 min-w-0">

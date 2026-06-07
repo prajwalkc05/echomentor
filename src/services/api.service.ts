@@ -47,17 +47,27 @@ export const aiChatService = {
   async sendMessage(
     message: string,
     conversationHistory?: Array<{role: string; content: string}>,
-    fileContext?: string
+    fileContext?: string,
+    sessionId?: string,
+    sessionTitle?: string
   ) {
     const messages = [
       { role: 'system', content: SYSTEM_PROMPT },
       ...(conversationHistory ?? [{ role: 'user', content: message }]),
     ];
-    return api.post('/api/ai/chat', { message, messages, fileContext: fileContext || undefined });
+    return api.post('/api/ai/chat', { message, messages, fileContext: fileContext || undefined, sessionId, sessionTitle });
   },
 
   async getHistory() {
     return api.get('/api/ai/history');
+  },
+
+  async getSessionMessages(sessionId: string) {
+    return api.get(`/api/ai/history?sessionId=${sessionId}`);
+  },
+
+  async deleteSession(sessionId: string) {
+    return api.delete(`/api/ai/session/${sessionId}`);
   },
 
   async deleteChat(chatId: string) {

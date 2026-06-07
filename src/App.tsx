@@ -17,18 +17,13 @@ import Courses from './pages/Courses';
 import Settings from './pages/Settings';
 import StartupGuide from './pages/StartupGuide';
 import HelpSupport from './pages/HelpSupport';
+import SubscriptionPage from './pages/SubscriptionPage';
 import Onboarding from './pages/Onboarding';
 import CourseOnboarding from './courses/CourseOnboarding';
 import AdminApp from './admin/AdminApp';
 
-const PROTECTED_PAGES: Page[] = [
-  'dashboard', 'ai-chat', 'mood-tracker', 'study-planner',
-  'opportunities', 'resume-builder', 'code-assistant', 'ppt-generator',
-  'courses', 'settings', 'startup-guide', 'help', 'ai-tools',
-];
-
 export default function App() {
-  const { user, isLoggedIn, logout } = useUser();
+  const { user, isLoggedIn } = useUser();
   const [currentPage, setCurrentPage] = useState<Page>('landing');
   const [aiToolsOpen, setAiToolsOpen] = useState(false);
   const [showCourseOnboarding, setShowCourseOnboarding] = useState(false);
@@ -147,6 +142,7 @@ export default function App() {
       {currentPage === 'settings' && <Settings onNavigate={navigate} />}
       {currentPage === 'startup-guide' && <StartupGuide />}
       {currentPage === 'help' && <HelpSupport />}
+      {currentPage === 'subscription' && <SubscriptionPage />}
     </div>
   );
 }

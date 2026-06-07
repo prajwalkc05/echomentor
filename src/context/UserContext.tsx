@@ -16,6 +16,8 @@ export interface UserProfile {
   darkMode: boolean;
   isGoogleUser?: boolean;
   _id?: string;
+  subscriptionPlan?: string;
+  subscriptionData?: { startDate?: string; endDate?: string; paymentId?: string };
 }
 
 const defaultProfile: UserProfile = {

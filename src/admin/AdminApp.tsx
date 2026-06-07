@@ -4,6 +4,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminAnalytics from './pages/AdminAnalytics';
 import { AdminSubscriptions, AdminAIUsage, AdminResume, AdminPPT, AdminCourses, AdminOpportunities, AdminNotifications, AdminCoupons, AdminSettings, AdminSecurity } from './pages/AdminPages';
+import AdminStartupGuide from './pages/AdminStartupGuide';
 
 export type AdminPage =
   | 'dashboard' | 'users' | 'subscriptions' | 'analytics'
@@ -16,7 +17,7 @@ export default function AdminApp({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="flex h-screen bg-[#060B18] overflow-hidden">
       <AdminSidebar currentPage={page} onNavigate={setPage} onLogout={onLogout} />
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto">
         {page === 'dashboard' && <AdminDashboard />}
         {page === 'users' && <AdminUsers />}
         {page === 'analytics' && <AdminAnalytics />}
@@ -25,7 +26,7 @@ export default function AdminApp({ onLogout }: { onLogout: () => void }) {
         {page === 'resume' && <AdminResume />}
         {page === 'ppt' && <AdminPPT />}
         {page === 'courses' && <AdminCourses />}
-        {page === 'startup' && <AdminCourses />}
+        {page === 'startup' && <AdminStartupGuide />}
         {page === 'opportunities' && <AdminOpportunities />}
         {page === 'notifications' && <AdminNotifications />}
         {page === 'coupons' && <AdminCoupons />}

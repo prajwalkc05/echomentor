@@ -67,9 +67,9 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
 }
 
 // ── Section Card ──────────────────────────────────────────────────────────────
-export function SectionCard({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
+export function SectionCard({ title, children, action, className = '' }: { title: string; children: ReactNode; action?: ReactNode; className?: string }) {
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden ${className}`}>
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/5">
         <h3 className="text-white font-semibold text-sm">{title}</h3>
         {action}

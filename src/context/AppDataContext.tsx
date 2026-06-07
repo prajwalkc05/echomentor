@@ -90,9 +90,11 @@ interface AppDataContextType {
   
   // AI Chat
   chatHistory: ChatMessage[];
-  sendChatMessage: (message: string, conversationHistory?: Array<{role: string; content: string}>, fileContext?: string) => Promise<string>;
+  sendChatMessage: (message: string, conversationHistory?: Array<{role: string; content: string}>, fileContext?: string, sessionId?: string, sessionTitle?: string) => Promise<string>;
   extractFiles: (files: File[]) => Promise<{ extractedText: string; fileNames: string[] }>;
-  fetchChatHistory: () => Promise<void>;
+  fetchChatHistory: () => Promise<{ id: string; title: string; lastMessage: string }[]>;
+  fetchSessionMessages: (sessionId: string) => Promise<{ message: string; reply: string; createdAt: string }[]>;
+  deleteChatSession: (sessionId: string) => Promise<void>;
   deleteChatMessage: (chatId: string) => Promise<void>;
   clearAllChatHistory: () => Promise<void>;
   
@@ -306,11 +308,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   // AI Chat
-  const sendChatMessage = async (message: string, conversationHistory?: Array<{role: string; content: string}>, fileContext?: string): Promise<string> => {
+  const sendChatMessage = async (message: string, conversationHistory?: Array<{role: string; content: string}>, fileContext?: string, sessionId?: string, sessionTitle?: string): Promise<string> => {
     try {
       console.log('📤 Sending chat message:', { message, hasHistory: !!conversationHistory, hasFileContext: !!fileContext });
       
-      const response = await aiChatService.sendMessage(message, conversationHistory, fileContext);
+      const response = await aiChatService.sendMessage(message, conversationHistory, fileContext, sessionId, sessionTitle);
       
       console.log('📥 Received response:', response);
       console.log('📥 Response type:', typeof response);
@@ -353,23 +355,32 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return { extractedText: result.extractedText, fileNames: result.fileNames };
   };
 
-  const fetchChatHistory = async () => {
+  const fetchChatHistory = async (): Promise<{ id: string; title: string; lastMessage: string }[]> => {
     try {
       const data = await aiChatService.getHistory();
-      // Handle different response formats
-      let historyArray = [];
-      if (Array.isArray(data)) {
-        historyArray = data;
-      } else if (data && Array.isArray(data.history)) {
-        historyArray = data.history;
-      } else if (data && Array.isArray(data.chats)) {
-        historyArray = data.chats;
-      }
-      setChatHistory(historyArray);
+      const sessions = data?.sessions ?? [];
+      setChatHistory(sessions);
+      return sessions.map((s: any) => ({ id: s._id, title: s.sessionTitle || 'Chat', lastMessage: s.lastMessage || '' }));
+    } catch {
+      setChatHistory([]);
+      return [];
+    }
+  };
+
+  const fetchSessionMessages = async (sessionId: string) => {
+    try {
+      const data = await aiChatService.getSessionMessages(sessionId);
+      return data?.chats ?? [];
+    } catch {
+      return [];
+    }
+  };
+
+  const deleteChatSession = async (sessionId: string) => {
+    try {
+      await aiChatService.deleteSession(sessionId);
     } catch (error: any) {
-      console.error('Failed to fetch chat history:', error);
-      // Don't set error for history fetch failures, just log them
-      setChatHistory([]); // Set empty array on error
+      console.error('Failed to delete session:', error);
     }
   };
 
@@ -494,6 +505,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       sendChatMessage,
       extractFiles,
       fetchChatHistory,
+      fetchSessionMessages,
+      deleteChatSession,
       deleteChatMessage,
       clearAllChatHistory,
       codeHistory,

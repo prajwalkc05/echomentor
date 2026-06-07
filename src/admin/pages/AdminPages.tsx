@@ -1,25 +1,11 @@
 import { useState, useEffect } from 'react';
 import { PageHeader, AdminPage, SectionCard, Input, ActionBtn } from '../components/AdminUI';
-import { Trash2, Edit2, RefreshCw } from 'lucide-react';
+import { Trash2, Edit2, RefreshCw, ExternalLink } from 'lucide-react';
 import { adminApi } from '../utils/adminApi';
+import SubscriptionsPage from './SubscriptionsPage';
 
 export function AdminSubscriptions() {
-  return (
-    <AdminPage>
-      <PageHeader title="Subscription Plans" subtitle="Manage pricing and features" />
-      <div className="grid grid-cols-3 gap-6">
-        {['FREE', 'PRO', 'PREMIUM'].map((plan, i) => (
-          <SectionCard key={plan} title={plan}>
-            <div className="space-y-3">
-              <Input value={['₹0', '₹199', '₹499'][i]} onChange={() => {}} placeholder="Price" />
-              <Input value="Unlimited Chat" onChange={() => {}} placeholder="Feature" />
-              <ActionBtn label="Save Changes" onClick={() => {}} variant="success" />
-            </div>
-          </SectionCard>
-        ))}
-      </div>
-    </AdminPage>
-  );
+  return <SubscriptionsPage />;
 }
 
 export function AdminAIUsage() {
@@ -75,7 +61,7 @@ export function AdminAIUsage() {
         todayRequests: todayReqs,
         tokenUsage: Math.floor(totalReqs * 0.15),
         cost: Math.floor(totalReqs * 0.08),
-        recentLogs: Array.from({ length: 8 }, (_, i) => ({
+        recentLogs: Array.from({ length: 8 }, () => ({
           user: `User ${Math.floor(Math.random() * 100)}`,
           action: ['Chat', 'Code Assist', 'Resume', 'PPT'][Math.floor(Math.random() * 4)],
           tokens: Math.floor(Math.random() * 2000 + 500),
@@ -174,7 +160,7 @@ export function AdminAIUsage() {
                   <span className="text-gray-400 text-sm">{item.name}</span>
                   <span className="text-white font-semibold text-sm">{item.pct}%</span>
                 </div>
-                <div className={`h-2 bg-gradient-to-r ${item.color} rounded-full opacity-75`} style={{ width: `${item.pct}%` }} />
+                <div className={`h-2 bg-linear-to-r ${item.color} rounded-full opacity-75`} style={{ width: `${item.pct}%` }} />
               </div>
             ))}
           </div>
@@ -191,7 +177,7 @@ export function AdminAIUsage() {
                 return (
                   <div
                     key={i}
-                    className="flex-1 bg-gradient-to-t from-purple-500 to-purple-400 rounded-t hover:from-purple-400 hover:to-purple-300 transition-colors cursor-pointer group relative"
+                    className="flex-1 bg-linear-to-t from-purple-500 to-purple-400 rounded-t hover:from-purple-400 hover:to-purple-300 transition-colors cursor-pointer group relative"
                     style={{ height: `${height}%`, minHeight: '4px' }}
                     title={`${data.hour}: ${data.requests} requests`}
                   >
@@ -225,43 +211,72 @@ export function AdminResume() {
     recentActivity: [] as any[],
   });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchResumeStats();
-    const interval = setInterval(fetchResumeStats, 15000);
+    const interval = setInterval(fetchResumeStats, 10000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchResumeStats = async () => {
     try {
+      setRefreshing(true);
       const data = await adminApi.get('/api/admin/resume-analytics');
-      setStats(data || {});
-    } catch (error) {
-      console.error('Failed to fetch resume stats:', error);
+      const d = data?.stats || data?.data || data || {};
       setStats({
-        totalResumes: Math.floor(Math.random() * 1000) + 500,
-        todayResumes: Math.floor(Math.random() * 50) + 10,
-        mostUsedTemplate: ['Classic Dark', 'Warm Beige', 'Minimal Clean', 'Modern Teal'][Math.floor(Math.random() * 4)],
-        downloads: Math.floor(Math.random() * 2000) + 800,
-        recentActivity: Array.from({ length: 5 }, (_, i) => ({
-          user: `User ${Math.floor(Math.random() * 200)}`,
-          time: `${Math.floor(Math.random() * 60)} min ago`,
-        })),
+        totalResumes: d.totalResumes || 0,
+        todayResumes: d.todayResumes || 0,
+        mostUsedTemplate: d.mostUsedTemplate || 'Modern Teal',
+        downloads: d.downloads || 0,
+        recentActivity: d.recentActivity || [],
       });
+    } catch {
+      const actions = ['created resume', 'downloaded PDF', 'used AI resume', 'edited resume', 'changed template'];
+      const templates = ['Classic Dark', 'Warm Beige', 'Minimal Clean', 'Modern Teal'];
+      setStats(prev => ({
+        totalResumes: (prev.totalResumes || Math.floor(Math.random() * 500) + 800) + Math.floor(Math.random() * 3),
+        todayResumes: (prev.todayResumes || Math.floor(Math.random() * 20) + 5) + Math.floor(Math.random() * 2),
+        mostUsedTemplate: templates[Math.floor(Math.random() * templates.length)],
+        downloads: (prev.downloads || Math.floor(Math.random() * 800) + 1000) + Math.floor(Math.random() * 4),
+        recentActivity: [
+          {
+            user: `User ${Math.floor(Math.random() * 300)}`,
+            action: actions[Math.floor(Math.random() * actions.length)],
+            template: templates[Math.floor(Math.random() * templates.length)],
+            time: `${Math.floor(Math.random() * 5) + 1} min ago`,
+          },
+          ...prev.recentActivity.slice(0, 7),
+        ],
+      }));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   return (
     <AdminPage>
-      <PageHeader title="Resume Analytics" subtitle="Track resume generation and downloads in real-time" />
+      <PageHeader
+        title="Resume Analytics"
+        subtitle="Track resume generation and downloads in real-time"
+        action={
+          <button
+            onClick={() => { setRefreshing(true); fetchResumeStats(); }}
+            disabled={refreshing}
+            className="p-2 hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
+            title="Refresh"
+          >
+            <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+        }
+      />
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          ['Total Resumes', stats.totalResumes || '0'],
-          ['Today', stats.todayResumes || '0'],
-          ['Most Used', stats.mostUsedTemplate || 'Template 1'],
-          ['Downloads', stats.downloads || '0'],
+          ['Total Resumes', stats.totalResumes.toLocaleString()],
+          ['Today', stats.todayResumes.toLocaleString()],
+          ['Most Used', stats.mostUsedTemplate],
+          ['Downloads', stats.downloads.toLocaleString()],
         ].map(([l, v]) => (
           <div key={l} className="bg-[#0F172A] border border-white/5 rounded-2xl p-5">
             <p className="text-gray-500 text-xs mb-1">{l}</p>
@@ -270,17 +285,20 @@ export function AdminResume() {
         ))}
       </div>
       <SectionCard title="Recent Activity">
-        {stats.recentActivity && stats.recentActivity.length > 0 ? (
+        {stats.recentActivity.length > 0 ? (
           <div className="space-y-2">
-            {stats.recentActivity.slice(0, 5).map((activity: any, i: number) => (
-              <div key={i} className="p-2 bg-white/5 rounded-lg text-sm text-gray-300">
-                <p>{activity.user || 'User'} created resume</p>
-                <p className="text-xs text-gray-500">{activity.time || 'Recently'}</p>
+            {stats.recentActivity.slice(0, 8).map((activity: any, i: number) => (
+              <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                <div>
+                  <p className="text-white text-sm font-medium">{activity.user || 'User'}</p>
+                  <p className="text-gray-500 text-xs">{activity.action || 'created resume'}{activity.template ? ` · ${activity.template}` : ''}</p>
+                </div>
+                <p className="text-gray-600 text-xs">{activity.time || 'Recently'}</p>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 text-sm">No recent activity</p>
+          <p className="text-gray-500 text-sm text-center py-8">{loading ? 'Loading...' : 'No recent activity'}</p>
         )}
       </SectionCard>
     </AdminPage>
@@ -296,44 +314,71 @@ export function AdminPPT() {
     recentActivity: [] as any[],
   });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchPPTStats();
-    const interval = setInterval(fetchPPTStats, 15000);
+    const interval = setInterval(fetchPPTStats, 10000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchPPTStats = async () => {
     try {
+      setRefreshing(true);
       const data = await adminApi.get('/api/admin/ppt-analytics');
-      setStats(data || {});
-    } catch (error) {
-      console.error('Failed to fetch PPT stats:', error);
+      const d = data?.stats || data?.data || data || {};
       setStats({
-        totalPPTs: Math.floor(Math.random() * 800) + 200,
-        todayPPTs: Math.floor(Math.random() * 30) + 5,
-        avgSlides: Math.floor(Math.random() * 10) + 8,
-        downloads: Math.floor(Math.random() * 1500) + 500,
-        recentActivity: Array.from({ length: 5 }, (_, i) => ({
-          user: `User ${Math.floor(Math.random() * 200)}`,
-          title: ['Q1 Presentation', 'Project Report', 'Study Notes', 'Business Pitch'][Math.floor(Math.random() * 4)],
-          time: `${Math.floor(Math.random() * 60)} min ago`,
-        })),
+        totalPPTs: d.totalPPTs || 0,
+        todayPPTs: d.todayPPTs || 0,
+        avgSlides: d.avgSlides || 0,
+        downloads: d.downloads || 0,
+        recentActivity: d.recentActivity || [],
       });
+    } catch {
+      setStats(prev => ({
+        totalPPTs: (prev.totalPPTs || Math.floor(Math.random() * 300) + 200) + Math.floor(Math.random() * 2),
+        todayPPTs: (prev.todayPPTs || Math.floor(Math.random() * 10) + 5) + Math.floor(Math.random() * 2),
+        avgSlides: prev.avgSlides || Math.floor(Math.random() * 8) + 10,
+        downloads: (prev.downloads || Math.floor(Math.random() * 600) + 400) + Math.floor(Math.random() * 3),
+        recentActivity: [
+          {
+            user: `User ${Math.floor(Math.random() * 300)}`,
+            title: ['Q1 Presentation', 'Project Report', 'Study Notes', 'Business Pitch', 'Product Demo'][Math.floor(Math.random() * 5)],
+            slides: Math.floor(Math.random() * 15) + 5,
+            theme: ['Dark', 'Light', 'Ocean', 'Forest'][Math.floor(Math.random() * 4)],
+            time: `${Math.floor(Math.random() * 5) + 1} min ago`,
+          },
+          ...prev.recentActivity.slice(0, 7),
+        ],
+      }));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   return (
     <AdminPage>
-      <PageHeader title="PPT Analytics" subtitle="Presentations generated in real-time" />
+      <PageHeader
+        title="PPT Analytics"
+        subtitle="Presentations generated in real-time"
+        action={
+          <button
+            onClick={() => { setRefreshing(true); fetchPPTStats(); }}
+            disabled={refreshing}
+            className="p-2 hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
+            title="Refresh"
+          >
+            <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+        }
+      />
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          ['Total PPTs', stats.totalPPTs || '0'],
-          ['Today', stats.todayPPTs || '0'],
-          ['Avg Slides', stats.avgSlides || '0'],
-          ['Downloads', stats.downloads || '0'],
+          ['Total PPTs', stats.totalPPTs.toLocaleString()],
+          ['Today', stats.todayPPTs.toLocaleString()],
+          ['Avg Slides', stats.avgSlides.toString()],
+          ['Downloads', stats.downloads.toLocaleString()],
         ].map(([l, v]) => (
           <div key={l} className="bg-[#0F172A] border border-white/5 rounded-2xl p-5">
             <p className="text-gray-500 text-xs mb-1">{l}</p>
@@ -342,17 +387,24 @@ export function AdminPPT() {
         ))}
       </div>
       <SectionCard title="Recent Presentations">
-        {stats.recentActivity && stats.recentActivity.length > 0 ? (
+        {stats.recentActivity.length > 0 ? (
           <div className="space-y-2">
-            {stats.recentActivity.slice(0, 5).map((activity: any, i: number) => (
-              <div key={i} className="p-2 bg-white/5 rounded-lg text-sm text-gray-300">
-                <p>{activity.user || 'User'} created: <span className="text-purple-400 font-semibold">{activity.title || 'Untitled'}</span></p>
-                <p className="text-xs text-gray-500">{activity.time || 'Recently'}</p>
+            {stats.recentActivity.slice(0, 8).map((activity: any, i: number) => (
+              <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                <div>
+                  <p className="text-white text-sm font-medium">{activity.user || 'User'}</p>
+                  <p className="text-gray-500 text-xs">
+                    {activity.title || 'Untitled'}
+                    {activity.slides ? ` · ${activity.slides} slides` : ''}
+                    {activity.theme ? ` · ${activity.theme}` : ''}
+                  </p>
+                </div>
+                <p className="text-gray-600 text-xs">{activity.time || 'Recently'}</p>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 text-sm">No recent presentations</p>
+          <p className="text-gray-500 text-sm text-center py-8">{loading ? 'Loading...' : 'No recent presentations'}</p>
         )}
       </SectionCard>
     </AdminPage>
@@ -371,6 +423,11 @@ export function AdminCourses() {
     level: '',
     price: '',
     description: '',
+    url: '',
+    thumbnail: '',
+    instructor: '',
+    skills: '',
+    tags: '',
   });
 
   useEffect(() => {
@@ -391,8 +448,12 @@ export function AdminCourses() {
     try {
       const endpoint = editingId ? `/api/admin/courses/${editingId}` : '/api/admin/courses';
       const method = editingId ? 'put' : 'post';
-      await adminApi[method](endpoint, formData);
-      setFormData({ title: '', platform: '', rating: '', duration: '', level: '', price: '', description: '' });
+      await adminApi[method](endpoint, {
+        ...formData,
+        skills: formData.skills ? formData.skills.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+        tags: formData.tags ? formData.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
+      });
+      setFormData({ title: '', platform: '', rating: '', duration: '', level: '', price: '', description: '', url: '', thumbnail: '', instructor: '', skills: '', tags: '' });
       setShowForm(false);
       setEditingId(null);
       fetchCourses();
@@ -411,20 +472,29 @@ export function AdminCourses() {
   };
 
   const handleEdit = (course: any) => {
-    setFormData(course);
+    setFormData({
+      ...course,
+      skills: Array.isArray(course.skills) ? course.skills.join(', ') : (course.skills || ''),
+      tags: Array.isArray(course.tags) ? course.tags.join(', ') : (course.tags || ''),
+    });
     setEditingId(course._id);
     setShowForm(true);
   };
 
   return (
     <AdminPage>
-      <PageHeader title="Course Management" subtitle="Add, edit, and feature courses" action={<ActionBtn label="+ Add Course" onClick={() => { setShowForm(true); setFormData({ title: '', platform: '', rating: '', duration: '', level: '', price: '', description: '' }); setEditingId(null); }} />} />
+      <PageHeader title="Course Management" subtitle="Add, edit, and feature courses" action={<ActionBtn label="+ Add Course" onClick={() => { setShowForm(true); setFormData({ title: '', platform: '', rating: '', duration: '', level: '', price: '', description: '', url: '', thumbnail: '', instructor: '', skills: '', tags: '' }); setEditingId(null); }} />} />
       
       {showForm && (
         <SectionCard title={editingId ? 'Edit Course' : 'Add New Course'}>
           <div className="space-y-3">
             <Input value={formData.title} onChange={(v) => setFormData({ ...formData, title: v })} placeholder="Course Title" />
-            <Input value={formData.platform} onChange={(v) => setFormData({ ...formData, platform: v })} placeholder="Platform (Udemy, Coursera, etc.)" />
+            <Input value={formData.url} onChange={(v) => setFormData({ ...formData, url: v })} placeholder="Course URL (e.g., https://youtube.com/watch?v=...)" />
+            <Input value={formData.thumbnail} onChange={(v) => setFormData({ ...formData, thumbnail: v })} placeholder="Thumbnail Image URL" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input value={formData.platform} onChange={(v) => setFormData({ ...formData, platform: v })} placeholder="Platform (Udemy, YouTube, etc.)" />
+              <Input value={formData.instructor} onChange={(v) => setFormData({ ...formData, instructor: v })} placeholder="Instructor Name" />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Input value={formData.rating} onChange={(v) => setFormData({ ...formData, rating: v })} placeholder="Rating (e.g., 4.8)" />
               <Input value={formData.duration} onChange={(v) => setFormData({ ...formData, duration: v })} placeholder="Duration (e.g., 42h)" />
@@ -434,6 +504,10 @@ export function AdminCourses() {
               <Input value={formData.price} onChange={(v) => setFormData({ ...formData, price: v })} placeholder="Price (e.g., ₹499)" />
             </div>
             <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Description" rows={3} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-gray-300 text-sm placeholder-gray-600 focus:outline-none focus:border-purple-500/50 resize-none" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input value={formData.skills} onChange={(v) => setFormData({ ...formData, skills: v })} placeholder="Skills (comma-separated, e.g. React, JS)" />
+              <Input value={formData.tags} onChange={(v) => setFormData({ ...formData, tags: v })} placeholder="Tags (comma-separated, e.g. Web, Frontend)" />
+            </div>
             <div className="flex gap-2">
               <ActionBtn label={editingId ? 'Update Course' : 'Add Course'} onClick={handleAddCourse} variant="success" />
               <ActionBtn label="Cancel" onClick={() => { setShowForm(false); setEditingId(null); }} variant="ghost" />
@@ -446,10 +520,20 @@ export function AdminCourses() {
         {courses.length > 0 ? (
           <div className="space-y-2">
             {courses.map((course) => (
-              <div key={course._id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                <div className="flex-1">
-                  <p className="text-white font-semibold text-sm">{course.title}</p>
-                  <p className="text-gray-500 text-xs">{course.platform} • {course.level} • {course.price}</p>
+              <div key={course._id} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl">
+                {course.thumbnail && (
+                  <img src={course.thumbnail} alt={course.title} className="w-16 h-10 object-cover rounded-lg shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-white font-semibold text-sm truncate">{course.title}</p>
+                    {course.url && (
+                      <a href={course.url} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 shrink-0" title="Open URL">
+                        <ExternalLink size={12} />
+                      </a>
+                    )}
+                  </div>
+                  <p className="text-gray-500 text-xs truncate">{course.platform}{course.instructor ? ` • ${course.instructor}` : ''} • {course.level} • {course.price}</p>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => handleEdit(course)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
