@@ -268,7 +268,7 @@ export default function IdeaLab({ onNavigate, initialData }: IdeaLabProps) {
                   Validate
                 </button>
                 <button
-                  onClick={() => toggleSave((ideaData as any)._id || idea.id, idea)}
+                  onClick={() => toggleSave((idea as any)._id || idea.id, idea)}
                   className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                     savedIdeas.includes((idea as any)._id || idea.id)
                       ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
