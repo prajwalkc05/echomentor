@@ -4,7 +4,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Send, Bell, Copy, ThumbsUp, ThumbsDown, Paperclip, Plus, Share2, Trash2, Mic, X, FileText, Presentation, Code, Calculator, PenLine, AlertCircle, Edit3, Check } from 'lucide-react';
+import { Send, Copy, ThumbsUp, ThumbsDown, Paperclip, Plus, Share2, Trash2, Mic, X, FileText, Presentation, Code, Calculator, PenLine, AlertCircle, Edit3, Check } from 'lucide-react';
+import NotificationDropdown from '../components/NotificationDropdown';
 import { useAppData } from '../context';
 import { useUser } from '../context';
 import { storage } from '../utils/storage';
@@ -500,9 +501,7 @@ export default function AiChat({ onNavigate }: AiChatProps) {
             <button className="p-2 hover:bg-white/5 rounded-lg transition-colors">
               <Share2 size={18} />
             </button>
-            <button className="p-2 hover:bg-white/5 rounded-lg transition-colors">
-              <Bell size={18} />
-            </button>
+            <NotificationDropdown />
           </div>
         </div>
 

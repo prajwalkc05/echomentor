@@ -5,9 +5,11 @@ export interface Notification {
   _id: string;
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: 'info' | 'success' | 'warning' | 'error' | 'admin' | 'announcement' | 'alert' | 'update';
   read: boolean;
   createdAt: string;
+  priority?: string;
+  targetAudience?: string;
 }
 
 interface NotificationContextType {
@@ -37,10 +39,27 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         notificationsService.getAll(),
         notificationsService.getUnreadCount()
       ]);
-      setNotifications(notificationsData);
-      setUnreadCount(unreadData.count || 0);
+      
+      console.log('Notifications data:', notificationsData);
+      console.log('Unread data:', unreadData);
+      
+      // Handle different response formats
+      let notifList = [];
+      if (Array.isArray(notificationsData)) {
+        notifList = notificationsData;
+      } else if (notificationsData?.notifications) {
+        notifList = notificationsData.notifications;
+      } else if (notificationsData?.data) {
+        notifList = notificationsData.data;
+      }
+      
+      setNotifications(notifList);
+      setUnreadCount(unreadData?.count || 0);
     } catch (error: any) {
+      console.error('Fetch notifications error:', error);
       setError(error.message || 'Failed to fetch notifications');
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }

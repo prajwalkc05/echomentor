@@ -65,24 +65,25 @@ EchoMentor is a full-stack web application that provides students with a suite o
 src/
 ├── components/          # Reusable UI components
 │   ├── Sidebar.tsx      # Navigation sidebar
+│   ├── NotificationDropdown.tsx  # Notification bell & dropdown
 │   └── Logo.tsx
 ├── context/             # Global state management
 │   ├── UserContext.tsx  # Auth & user state
 │   ├── AppDataContext.tsx # All API data state
-│   ├── NotificationContext.tsx
+│   ├── NotificationContext.tsx  # Notification state & actions
 │   └── AdminContext.tsx
 ├── pages/               # Application pages
 │   ├── LandingPage.tsx
 │   ├── LoginPage.tsx
 │   ├── SignupPage.tsx
 │   ├── Dashboard.tsx
-│   ├── AiChat.tsx
+│   ├── AiChat.tsx       # Includes notification dropdown
 │   ├── CodeAssistant.tsx
 │   ├── MoodTracker.tsx
 │   ├── StudyPlanner.tsx
 │   ├── PptGenerator.tsx
 │   ├── ResumeBuilder.tsx
-│   ├── Opportunities.tsx
+│   ├── Opportunities.tsx  # Includes notification dropdown
 │   ├── Courses.tsx
 │   ├── StartupGuide.tsx
 │   ├── Settings.tsx
@@ -174,6 +175,7 @@ src/
 | POST | `/api/opportunities/bookmark` | Bookmark opportunity |
 | GET | `/api/opportunities/bookmarks` | Get bookmarks |
 | DELETE | `/api/opportunities/bookmark/:id` | Remove bookmark |
+| POST | `/api/opportunities/admin/create` | **(Admin)** Create new opportunity |
 
 ### Notifications — Token required
 
@@ -183,6 +185,7 @@ src/
 | GET | `/api/notifications/unread` | Get unread count |
 | PUT | `/api/notifications/read-all` | Mark all as read |
 | PUT | `/api/notifications/read/:id` | Mark one as read |
+| POST | `/api/admin/notifications/send` | **(Admin)** Send targeted notifications |
 
 ---
 
@@ -260,17 +263,18 @@ The Resume Builder is a standalone module with 4 professional templates:
 | Landing | Marketing page with features & CTA |
 | Signup / Login | JWT-based authentication |
 | Dashboard | Stats, quick access, activity feed, calendar |
-| AI Chat | Real-time AI conversation with history |
+| AI Chat | Real-time AI conversation with history, notifications |
 | Code Assistant | Write, explain, debug, review code with AI |
 | Study Planner | AI-generated study plans |
 | Mood Tracker | Daily mood tracking with AI suggestions |
 | PPT Generator | AI-powered presentation generator |
 | Resume Builder | 4-template resume builder with PDF export |
-| Opportunities | Job, internship & scholarship listings |
+| Opportunities | Job, internship & scholarship listings, notifications |
 | Courses | Learning resources |
 | Startup Guide | Entrepreneurship resources |
 | Settings | Profile & preferences |
 | Help & Support | FAQs and contact |
+| **Admin Panel** | Manage opportunities, send notifications, view analytics |
 
 ---
 
@@ -328,3 +332,64 @@ Currently hosted on **Render** at:
 ## 👥 Team
 
 Built with ❤️ for students by the EchoMentor team.
+
+---
+
+## 🔔 Notification System
+
+### User Features
+- **Bell Icon Dropdown** in page headers (Opportunities, AI Chat)
+- Real-time unread count badge
+- Notification types: Admin, Announcement, Alert, Update, Info
+- Click to mark as read
+- Auto-refresh every 30 seconds
+
+### Admin Features
+- Send targeted notifications to:
+  - All Users
+  - Free Users only
+  - Pro Users only
+  - Premium Users only
+- Set notification title, message, type, and priority
+- Track notification analytics
+
+### Example Admin Notification:
+```json
+{
+  "title": "🎉 New Feature Alert!",
+  "message": "Check out our new AI Resume Builder with 4 templates!",
+  "targetAudience": "all",
+  "type": "announcement",
+  "priority": "high"
+}
+```
+
+**API Endpoint:** `POST /api/admin/notifications/send`
+
+---
+
+## 📊 Admin Panel Features
+
+### Dashboard
+- User statistics (total, free, pro, premium)
+- Daily activity tracking
+- Revenue analytics
+- Recent user activity feed
+
+### Opportunities Management
+- Create, edit, delete opportunities
+- Support for Jobs, Internships, Hackathons, Scholarships, Fellowships
+- Filter by category
+
+### Notification System
+- Broadcast messages to users
+- Target specific subscription tiers
+- Track notification delivery and read status
+
+### Analytics
+- AI usage monitoring
+- Resume generation stats
+- PPT creation tracking
+- User engagement metrics
+
+**Access:** Login as admin with `ADMIN_EMAIL` environment variable

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Bell, Bookmark, MapPin, Briefcase, Building2, Zap, GraduationCap, Star, BarChart3, AlertCircle, RefreshCw, X } from 'lucide-react';
+import { Search, Bookmark, MapPin, Briefcase, Building2, Zap, GraduationCap, Star, BarChart3, AlertCircle, RefreshCw, X } from 'lucide-react';
 import { useAppData } from '../context';
 import { useUser } from '../context';
+import NotificationDropdown from '../components/NotificationDropdown';
 
 const categories = [
   { icon: <Briefcase size={18} className="text-purple-400" />, label: 'Internship' },
@@ -125,7 +126,7 @@ export default function Opportunities() {
           >
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Refresh
           </button>
-          <Bell size={18} className="text-gray-400" />
+          <NotificationDropdown />
           <div className="w-8 h-8 rounded-full bg-linear-to-br from-pink-400 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
             {user.avatar}
           </div>

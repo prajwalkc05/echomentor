@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PageHeader, AdminPage, SectionCard, Input, ActionBtn } from '../components/AdminUI';
+import { PageHeader, AdminPage, SectionCard, Input, ActionBtn, Badge } from '../components/AdminUI';
 import { Trash2, Edit2, RefreshCw, ExternalLink } from 'lucide-react';
 import { adminApi } from '../utils/adminApi';
 import SubscriptionsPage from './SubscriptionsPage';
@@ -556,17 +556,40 @@ export function AdminCourses() {
 
 export function AdminOpportunities() {
   const [opportunities, setOpportunities] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'Jobs' | 'Internships' | 'Hackathons' | 'Scholarships'>('Jobs');
+  const [activeTab, setActiveTab] = useState<'Jobs' | 'Internships' | 'Hackathons' | 'Scholarships' | 'Fellowships'>('Jobs');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     type: 'Jobs',
-    role: '',
+    title: '',
     company: '',
     location: '',
     salary: '',
+    deadline: '',
+    url: '',
+    skills: '',
     description: '',
   });
+
+  const normalizeAdminType = (type: string) => {
+    const t = (type || '').toLowerCase();
+    if (t.includes('job')) return 'Jobs';
+    if (t.includes('intern')) return 'Internships';
+    if (t.includes('hack')) return 'Hackathons';
+    if (t.includes('scholar')) return 'Scholarships';
+    if (t.includes('fellow')) return 'Fellowships';
+    return 'Jobs';
+  };
+
+  const normalizeBackendType = (type: string) => {
+    const t = (type || '').toLowerCase();
+    if (['job', 'jobs', 'full time', 'fulltime', 'full-time', 'permanent'].includes(t)) return 'Jobs';
+    if (['internship', 'internships', 'intern'].includes(t)) return 'Internships';
+    if (['hackathon', 'hackathons', 'hack'].includes(t)) return 'Hackathons';
+    if (['scholarship', 'scholarships'].includes(t)) return 'Scholarships';
+    if (['fellowship', 'fellowships'].includes(t)) return 'Fellowships';
+    return 'Jobs';
+  };
 
   useEffect(() => {
     fetchOpportunities();
@@ -582,12 +605,19 @@ export function AdminOpportunities() {
   };
 
   const handleAddOpportunity = async () => {
-    if (!formData.role.trim()) return;
+    if (!formData.title.trim()) return;
+
+    const payload = {
+      ...formData,
+      type: activeTab,
+      skills: formData.skills.split(',').map((skill) => skill.trim()).filter(Boolean),
+    };
+
     try {
       const endpoint = editingId ? `/api/admin/opportunities/${editingId}` : '/api/admin/opportunities';
       const method = editingId ? 'put' : 'post';
-      await adminApi[method](endpoint, { ...formData, type: activeTab });
-      setFormData({ type: activeTab, role: '', company: '', location: '', salary: '', description: '' });
+      await adminApi[method](endpoint, payload);
+      setFormData({ type: activeTab, title: '', company: '', location: '', salary: '', deadline: '', url: '', skills: '', description: '' });
       setShowForm(false);
       setEditingId(null);
       fetchOpportunities();
@@ -606,19 +636,30 @@ export function AdminOpportunities() {
   };
 
   const handleEdit = (opp: any) => {
-    setFormData(opp);
+    setFormData({
+      type: normalizeAdminType(opp.type),
+      title: opp.title || opp.role || '',
+      company: opp.company || '',
+      location: opp.location || '',
+      salary: opp.salary || '',
+      deadline: opp.deadline || '',
+      url: opp.url || '',
+      skills: Array.isArray(opp.skills) ? opp.skills.join(', ') : opp.skills || '',
+      description: opp.description || '',
+    });
+    setActiveTab(normalizeBackendType(opp.type));
     setEditingId(opp._id);
     setShowForm(true);
   };
 
-  const filteredOpps = opportunities.filter(o => o.type === activeTab);
+  const filteredOpps = opportunities.filter(o => normalizeBackendType(o.type) === activeTab);
 
   return (
     <AdminPage>
-      <PageHeader title="Opportunities Management" subtitle="Jobs, internships, hackathons, scholarships" action={<ActionBtn label="+ Add Opportunity" onClick={() => { setShowForm(true); setFormData({ type: activeTab, role: '', company: '', location: '', salary: '', description: '' }); setEditingId(null); }} />} />
+      <PageHeader title="Opportunities Management" subtitle="Jobs, internships, hackathons, scholarships, fellowships" action={<ActionBtn label="+ Add Opportunity" onClick={() => { setShowForm(true); setFormData({ type: activeTab, title: '', company: '', location: '', salary: '', deadline: '', url: '', skills: '', description: '' }); setEditingId(null); }} />} />
       
-      <div className="flex gap-2 mb-6">
-        {(['Jobs', 'Internships', 'Hackathons', 'Scholarships'] as const).map(t => (
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {(['Jobs', 'Internships', 'Hackathons', 'Scholarships', 'Fellowships'] as const).map(t => (
           <button key={t} onClick={() => setActiveTab(t)} className={`px-4 py-2 rounded-xl text-sm transition-colors ${activeTab === t ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>{t}</button>
         ))}
       </div>
@@ -626,12 +667,17 @@ export function AdminOpportunities() {
       {showForm && (
         <SectionCard title={editingId ? 'Edit Opportunity' : 'Add New Opportunity'}>
           <div className="space-y-3">
-            <Input value={formData.role} onChange={(v) => setFormData({ ...formData, role: v })} placeholder="Role Title" />
+            <Input value={formData.title} onChange={(v) => setFormData({ ...formData, title: v })} placeholder="Opportunity Title" />
             <Input value={formData.company} onChange={(v) => setFormData({ ...formData, company: v })} placeholder="Company/Organization" />
             <div className="grid grid-cols-2 gap-3">
               <Input value={formData.location} onChange={(v) => setFormData({ ...formData, location: v })} placeholder="Location" />
-              <Input value={formData.salary} onChange={(v) => setFormData({ ...formData, salary: v })} placeholder="Salary/Prize" />
+              <Input value={formData.salary} onChange={(v) => setFormData({ ...formData, salary: v })} placeholder="Salary / Prize" />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input value={formData.deadline} onChange={(v) => setFormData({ ...formData, deadline: v })} placeholder="Deadline" />
+              <Input value={formData.url} onChange={(v) => setFormData({ ...formData, url: v })} placeholder="Application URL" />
+            </div>
+            <Input value={formData.skills} onChange={(v) => setFormData({ ...formData, skills: v })} placeholder="Skills (comma separated)" />
             <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Description" rows={3} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-gray-300 text-sm placeholder-gray-600 focus:outline-none focus:border-purple-500/50 resize-none" />
             <div className="flex gap-2">
               <ActionBtn label={editingId ? 'Update' : 'Add'} onClick={handleAddOpportunity} variant="success" />
@@ -647,7 +693,7 @@ export function AdminOpportunities() {
             {filteredOpps.map((opp) => (
               <div key={opp._id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
                 <div className="flex-1">
-                  <p className="text-white font-semibold text-sm">{opp.role}</p>
+                  <p className="text-white font-semibold text-sm">{opp.title || opp.role}</p>
                   <p className="text-gray-500 text-xs">{opp.company} • {opp.location} • {opp.salary}</p>
                 </div>
                 <div className="flex gap-2">
@@ -670,19 +716,157 @@ export function AdminOpportunities() {
 }
 
 export function AdminNotifications() {
+  const [formData, setFormData] = useState({
+    title: '',
+    message: '',
+    targetAudience: 'all',
+    type: 'admin',
+    priority: 'medium'
+  });
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{ success: boolean; message: string; sentCount?: number } | null>(null);
+
+  const handleSendNotification = async () => {
+    if (!formData.title.trim() || !formData.message.trim()) {
+      setResult({ success: false, message: 'Title and message are required' });
+      return;
+    }
+
+    try {
+      setSending(true);
+      setResult(null);
+      
+      const response = await adminApi.post('/api/admin/notifications/send', {
+        title: formData.title,
+        message: formData.message,
+        targetAudience: formData.targetAudience,
+        type: formData.type,
+        priority: formData.priority
+      });
+      
+      setResult({ 
+        success: true, 
+        message: response.message || 'Notification sent successfully!',
+        sentCount: response.sentCount 
+      });
+      
+      // Reset form after successful send
+      setFormData({
+        title: '',
+        message: '',
+        targetAudience: 'all',
+        type: 'admin',
+        priority: 'medium'
+      });
+    } catch (error: any) {
+      console.error('Failed to send notification:', error);
+      setResult({ 
+        success: false, 
+        message: error.message || 'Failed to send notification' 
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <AdminPage>
-      <PageHeader title="Send Notifications" subtitle="Broadcast to users" />
+      <PageHeader title="Send Notifications" subtitle="Broadcast messages to users" />
+      
       <SectionCard title="Create Notification">
         <div className="space-y-4">
-          <Input value="" onChange={() => {}} placeholder="Title" />
-          <textarea placeholder="Message" rows={4} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-gray-300 text-sm placeholder-gray-600 focus:outline-none focus:border-purple-500/50 resize-none" />
-          <div className="flex gap-2">
-            {['All Users', 'Free', 'Pro', 'Premium'].map(a => (
-              <button key={a} className="px-4 py-2 rounded-xl bg-white/5 text-gray-400 hover:bg-purple-600 hover:text-white transition-colors text-xs">{a}</button>
-            ))}
+          <div>
+            <label className="text-gray-400 text-xs block mb-2">Notification Title</label>
+            <Input 
+              value={formData.title} 
+              onChange={(v) => setFormData({ ...formData, title: v })} 
+              placeholder="Enter notification title (e.g., New Feature Alert!)" 
+            />
           </div>
-          <ActionBtn label="Send Notification" onClick={() => {}} />
+          
+          <div>
+            <label className="text-gray-400 text-xs block mb-2">Message</label>
+            <textarea 
+              value={formData.message}
+              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+              placeholder="Enter your message here..." 
+              rows={4} 
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-gray-300 text-sm placeholder-gray-600 focus:outline-none focus:border-purple-500/50 resize-none" 
+            />
+          </div>
+          
+          <div>
+            <label className="text-gray-400 text-xs block mb-2">Target Audience</label>
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { value: 'all', label: 'All Users' },
+                { value: 'free', label: 'Free Users' },
+                { value: 'pro', label: 'Pro Users' },
+                { value: 'premium', label: 'Premium Users' }
+              ].map(audience => (
+                <button 
+                  key={audience.value}
+                  onClick={() => setFormData({ ...formData, targetAudience: audience.value })}
+                  className={`px-4 py-2 rounded-xl text-xs transition-colors ${
+                    formData.targetAudience === audience.value 
+                      ? 'bg-purple-600 text-white' 
+                      : 'bg-white/5 text-gray-400 hover:bg-purple-600 hover:text-white'
+                  }`}
+                >
+                  {audience.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-gray-400 text-xs block mb-2">Type</label>
+              <select 
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-gray-300 text-sm focus:outline-none focus:border-purple-500/50"
+              >
+                <option value="admin">Admin</option>
+                <option value="announcement">Announcement</option>
+                <option value="update">Update</option>
+                <option value="alert">Alert</option>
+                <option value="info">Info</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="text-gray-400 text-xs block mb-2">Priority</label>
+              <select 
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-gray-300 text-sm focus:outline-none focus:border-purple-500/50"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+          
+          {result && (
+            <div className={`p-3 rounded-xl border ${
+              result.success 
+                ? 'bg-green-500/10 border-green-500/30 text-green-400' 
+                : 'bg-red-500/10 border-red-500/30 text-red-400'
+            }`}>
+              <p className="text-sm">{result.message}</p>
+              {result.sentCount && (
+                <p className="text-xs mt-1 opacity-75">Sent to {result.sentCount} users</p>
+              )}
+            </div>
+          )}
+          
+          <ActionBtn 
+            label={sending ? 'Sending...' : 'Send Notification'} 
+            onClick={handleSendNotification}
+            variant={sending ? 'ghost' : 'success'}
+          />
         </div>
       </SectionCard>
     </AdminPage>
@@ -690,24 +874,149 @@ export function AdminNotifications() {
 }
 
 export function AdminCoupons() {
+  const [coupons, setCoupons] = useState([
+    { id: '1', code: 'SAVE50', discount: '50% off', expiry: 'Dec 31, 2024', active: true },
+    { id: '2', code: 'WELCOME20', discount: '20% off', expiry: 'Jan 15, 2025', active: true },
+    { id: '3', code: 'PREMIUM30', discount: '₹30 off', expiry: 'Feb 01, 2025', active: false },
+  ]);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    code: '',
+    discount: '',
+    expiry: '',
+    maxUses: '',
+    description: ''
+  });
+
+  const handleAddCoupon = () => {
+    if (!formData.code.trim() || !formData.discount.trim()) return;
+    
+    const newCoupon = {
+      id: Date.now().toString(),
+      code: formData.code.toUpperCase(),
+      discount: formData.discount,
+      expiry: formData.expiry || 'No expiry',
+      active: true
+    };
+    
+    setCoupons([newCoupon, ...coupons]);
+    setFormData({ code: '', discount: '', expiry: '', maxUses: '', description: '' });
+    setShowForm(false);
+  };
+
+  const toggleCouponStatus = (id: string) => {
+    setCoupons(coupons.map(coupon => 
+      coupon.id === id ? { ...coupon, active: !coupon.active } : coupon
+    ));
+  };
+
+  const deleteCoupon = (id: string) => {
+    setCoupons(coupons.filter(coupon => coupon.id !== id));
+  };
+
   return (
     <AdminPage>
-      <PageHeader title="Coupons & Discounts" subtitle="Create and manage promo codes" action={<ActionBtn label="+ New Coupon" onClick={() => {}} />} />
-      <SectionCard title="Active Coupons">
-        <div className="space-y-2">
-          {[
-            ['SAVE50', '50% off', 'Expires: Dec 31'],
-            ['WELCOME20', '20% off', 'Expires: Jan 15'],
-            ['PREMIUM30', '₹30 off', 'Expires: Feb 01'],
-          ].map(([code, disc, exp]) => (
-            <div key={code} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+      <PageHeader 
+        title="Coupons & Discounts" 
+        subtitle="Create and manage promo codes" 
+        action={
+          <ActionBtn 
+            label="+ New Coupon" 
+            onClick={() => {
+              setShowForm(true);
+              setFormData({ code: '', discount: '', expiry: '', maxUses: '', description: '' });
+            }}
+          />
+        } 
+      />
+      
+      {showForm && (
+        <SectionCard title="Create New Coupon">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-white font-semibold text-sm">{code}</p>
-                <p className="text-gray-500 text-xs">{disc} • {exp}</p>
+                <label className="text-gray-400 text-xs block mb-1">Coupon Code</label>
+                <Input 
+                  value={formData.code} 
+                  onChange={(v) => setFormData({ ...formData, code: v.toUpperCase() })}
+                  placeholder="e.g. SAVE50" 
+                />
               </div>
-              <ActionBtn label="Edit" onClick={() => {}} variant="ghost" />
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Discount</label>
+                <Input 
+                  value={formData.discount} 
+                  onChange={(v) => setFormData({ ...formData, discount: v })}
+                  placeholder="e.g. 50% off or ₹100 off" 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Expiry Date</label>
+                <Input 
+                  value={formData.expiry} 
+                  onChange={(v) => setFormData({ ...formData, expiry: v })}
+                  placeholder="e.g. Dec 31, 2024"
+                  type="date" 
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Max Uses</label>
+                <Input 
+                  value={formData.maxUses} 
+                  onChange={(v) => setFormData({ ...formData, maxUses: v })}
+                  placeholder="e.g. 100"
+                  type="number" 
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-gray-400 text-xs block mb-1">Description</label>
+              <textarea 
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Brief description of the coupon" 
+                rows={2} 
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-gray-300 text-sm placeholder-gray-600 focus:outline-none focus:border-purple-500/50 resize-none" 
+              />
+            </div>
+            <div className="flex gap-2">
+              <ActionBtn label="Create Coupon" onClick={handleAddCoupon} variant="success" />
+              <ActionBtn label="Cancel" onClick={() => setShowForm(false)} variant="ghost" />
+            </div>
+          </div>
+        </SectionCard>
+      )}
+      
+      <SectionCard title={`Coupons (${coupons.length})`}>
+        <div className="space-y-2">
+          {coupons.map((coupon) => (
+            <div key={coupon.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-white font-semibold text-sm">{coupon.code}</p>
+                  <Badge label={coupon.active ? 'active' : 'inactive'} />
+                </div>
+                <p className="text-gray-500 text-xs">{coupon.discount} • Expires: {coupon.expiry}</p>
+              </div>
+              <div className="flex gap-2">
+                <ActionBtn 
+                  label={coupon.active ? 'Deactivate' : 'Activate'} 
+                  onClick={() => toggleCouponStatus(coupon.id)} 
+                  variant={coupon.active ? 'danger' : 'success'} 
+                />
+                <ActionBtn 
+                  label="Delete" 
+                  onClick={() => deleteCoupon(coupon.id)} 
+                  variant="danger" 
+                />
+              </div>
             </div>
           ))}
+          {coupons.length === 0 && (
+            <p className="text-gray-500 text-sm text-center py-8">No coupons created yet.</p>
+          )}
         </div>
       </SectionCard>
     </AdminPage>
@@ -715,20 +1024,84 @@ export function AdminCoupons() {
 }
 
 export function AdminSettings() {
+  const [settings, setSettings] = useState({
+    platformName: 'EchoMentor',
+    supportEmail: 'support@echomentor.com',
+    maintenanceMode: false,
+    registrationEnabled: true
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSaveSettings = async () => {
+    try {
+      setSaving(true);
+      // Here you would make an API call to save settings
+      // await adminApi.put('/api/admin/settings', settings);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <AdminPage>
       <PageHeader title="Platform Settings" subtitle="Configure EchoMentor" />
-      <SectionCard title="General">
+      <SectionCard title="General Settings">
         <div className="space-y-4">
           <div>
             <label className="text-gray-500 text-xs block mb-1">Platform Name</label>
-            <Input value="EchoMentor" onChange={() => {}} />
+            <Input 
+              value={settings.platformName} 
+              onChange={(v) => setSettings({ ...settings, platformName: v })}
+              placeholder="Platform Name" 
+            />
           </div>
           <div>
             <label className="text-gray-500 text-xs block mb-1">Support Email</label>
-            <Input value="support@echomentor.com" onChange={() => {}} />
+            <Input 
+              value={settings.supportEmail} 
+              onChange={(v) => setSettings({ ...settings, supportEmail: v })}
+              placeholder="Support Email"
+              type="email" 
+            />
           </div>
-          <ActionBtn label="Save Settings" onClick={() => {}} variant="success" />
+          <div className="flex items-center gap-3">
+            <input 
+              type="checkbox" 
+              checked={settings.maintenanceMode}
+              onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })}
+              className="w-4 h-4 rounded bg-white/5 border border-white/10 text-purple-600 focus:ring-purple-500"
+            />
+            <label className="text-gray-300 text-sm">Maintenance Mode</label>
+          </div>
+          <div className="flex items-center gap-3">
+            <input 
+              type="checkbox" 
+              checked={settings.registrationEnabled}
+              onChange={(e) => setSettings({ ...settings, registrationEnabled: e.target.checked })}
+              className="w-4 h-4 rounded bg-white/5 border border-white/10 text-purple-600 focus:ring-purple-500"
+            />
+            <label className="text-gray-300 text-sm">Allow New Registrations</label>
+          </div>
+          
+          {saved && (
+            <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/30">
+              <p className="text-green-400 text-sm">Settings saved successfully!</p>
+            </div>
+          )}
+          
+          <ActionBtn 
+            label={saving ? 'Saving...' : 'Save Settings'} 
+            onClick={handleSaveSettings} 
+            variant={saving ? 'ghost' : 'success'} 
+          />
         </div>
       </SectionCard>
     </AdminPage>
