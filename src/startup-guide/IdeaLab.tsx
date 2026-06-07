@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Target, Bookmark, CheckCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { Sparkles, Target, Bookmark, CheckCircle, RefreshCw, Loader2, Trash2, AlertCircle } from 'lucide-react';
 import { startupGuideService } from '../services/api.service';
 import { generateMockIdeas } from './mockData';
 
@@ -25,6 +25,8 @@ export default function IdeaLab({ onNavigate, initialData }: IdeaLabProps) {
   const [savedIdeas, setSavedIdeas] = useState<string[]>([]);
   const [generatingMore, setGeneratingMore] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     console.log('IdeaLab: useEffect triggered, initialData:', initialData);
@@ -61,6 +63,29 @@ export default function IdeaLab({ onNavigate, initialData }: IdeaLabProps) {
       setIdeas([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const clearAllIdeas = async () => {
+    setClearing(true);
+    try {
+      await startupGuideService.clearAllIdeas();
+      setIdeas([]);
+      setSavedIdeas([]);
+      setShowConfirm(false);
+    } catch (error) {
+      console.error('Failed to clear ideas:', error);
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const deleteIdea = async (id: string) => {
+    try {
+      await startupGuideService.deleteIdea(id);
+      setIdeas(prev => prev.filter(i => (i as any)._id !== id && i.id !== id));
+    } catch (error) {
+      console.error('Failed to delete idea:', error);
     }
   };
 
@@ -117,10 +142,23 @@ export default function IdeaLab({ onNavigate, initialData }: IdeaLabProps) {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 bg-linear-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Idea Lab
-          </h1>
-          <p className="text-gray-400">AI-generated startup ideas tailored for you</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2 bg-linear-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Idea Lab
+              </h1>
+              <p className="text-gray-400">AI-generated startup ideas tailored for you</p>
+            </div>
+            {ideas.length > 0 && (
+              <button
+                onClick={() => setShowConfirm(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl text-sm font-medium transition-all"
+              >
+                <Trash2 size={16} />
+                Clear All Ideas
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -147,10 +185,19 @@ export default function IdeaLab({ onNavigate, initialData }: IdeaLabProps) {
               className="group relative bg-[#1a1a2e]/60 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-purple-500/30 transition-all hover:transform hover:scale-[1.02] animate-slide-up"
               style={{ animationDelay: `${idx * 100}ms` }}
             >
-              {/* Confidence Badge */}
-              <div className="absolute top-4 right-4 flex items-center gap-2 bg-purple-500/20 px-3 py-1 rounded-full">
-                <Sparkles size={14} className="text-purple-400" />
-                <span className="text-sm font-semibold">{idea.confidence}%</span>
+              {/* Confidence Badge + Delete */}
+              <div className="absolute top-4 right-4 flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-purple-500/20 px-3 py-1 rounded-full">
+                  <Sparkles size={14} className="text-purple-400" />
+                  <span className="text-sm font-semibold">{idea.confidence}%</span>
+                </div>
+                <button
+                  onClick={() => deleteIdea((idea as any)._id || idea.id)}
+                  className="p-1.5 bg-red-500/10 hover:bg-red-500/30 rounded-full transition-colors"
+                  title="Delete idea"
+                >
+                  <Trash2 size={13} className="text-red-400" />
+                </button>
               </div>
 
               {/* Content */}
@@ -250,6 +297,38 @@ export default function IdeaLab({ onNavigate, initialData }: IdeaLabProps) {
           </div>
         )}
       </div>
+
+      {/* Confirm Clear All Dialog */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                <AlertCircle size={20} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-white mb-1">Clear All Ideas?</h3>
+                <p className="text-gray-400 text-sm">This will permanently delete all {ideas.length} startup ideas from your account. This cannot be undone.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={clearAllIdeas}
+                disabled={clearing}
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                {clearing ? 'Clearing...' : 'Yes, Clear All'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

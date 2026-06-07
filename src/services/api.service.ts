@@ -382,6 +382,14 @@ export const startupGuideService = {
     return api.get('/api/startup/saved');
   },
 
+  async clearAllIdeas() {
+    return api.delete('/api/startup/clear-all');
+  },
+
+  async deleteIdea(id: string) {
+    return api.delete(`/api/startup/idea/${id}`);
+  },
+
   async getProgress() {
     return api.get('/api/startup/progress');
   },
