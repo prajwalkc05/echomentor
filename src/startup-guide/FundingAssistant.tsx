@@ -22,9 +22,8 @@ export default function FundingAssistant({ initialData }: FundingAssistantProps)
     setLoading(true);
     try {
       const response = await startupGuideService.analyzeFunding(idea);
-      if (response.data) {
-        setFundingData(response.data);
-      }
+      const data = response.data || response;
+      if (data) setFundingData(data);
     } catch (error: any) {
       console.error('Failed to analyze funding:', error);
       // Use mock data as fallback

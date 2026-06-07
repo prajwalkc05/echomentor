@@ -48,22 +48,14 @@ export default function IdeaLab({ onNavigate, initialData }: IdeaLabProps) {
       const response = await startupGuideService.getSavedIdeas();
       console.log('IdeaLab: Backend response:', response);
       
-      if (response.data?.success && response.data?.ideas) {
-        const loadedIdeas = response.data.ideas;
-        const savedIdsFromBackend = response.data.savedIds || [];
-        
-        if (loadedIdeas.length > 0) {
-          console.log('IdeaLab: Loaded ideas:', loadedIdeas.length);
-          setIdeas(loadedIdeas);
-          setSavedIdeas(savedIdsFromBackend);
-        } else {
-          console.log('IdeaLab: No ideas found in database');
-          setIdeas([]);
-        }
-      } else {
-        console.log('IdeaLab: Unexpected response format');
-        setIdeas([]);
-      }
+      // Handle both response formats
+      const data = response.data || response;
+      const loadedIdeas = data?.ideas || [];
+      const savedIdsFromBackend = data?.savedIds || [];
+      
+      console.log('IdeaLab: Loaded ideas:', loadedIdeas.length);
+      setIdeas(loadedIdeas);
+      setSavedIdeas(savedIdsFromBackend);
     } catch (error) {
       console.error('Failed to load saved ideas:', error);
       setIdeas([]);

@@ -23,9 +23,8 @@ export default function ValidationCenter({ initialData }: ValidationCenterProps)
     setLoading(true);
     try {
       const response = await startupGuideService.validateIdea(idea.id, idea);
-      if (response.data) {
-        setValidationData(response.data);
-      }
+      const data = response.data || response;
+      if (data) setValidationData(data);
     } catch (error: any) {
       console.error('Failed to validate idea:', error);
       // Use mock data as fallback

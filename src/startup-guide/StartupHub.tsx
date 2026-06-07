@@ -30,11 +30,12 @@ export default function StartupHub({ onNavigate }: StartupHubProps) {
   const loadStats = async () => {
     try {
       const response = await startupGuideService.getProgress();
-      if (response.data) {
+      const data = response.data || response;
+      if (data) {
         setStats({
-          trendingIdeas: response.data.trendingIdeas || 0,
-          successRate: response.data.successRate || 0,
-          ideasGenerated: response.data.ideasGenerated || 0
+          trendingIdeas: data.trendingIdeas || 0,
+          successRate: data.successRate || 0,
+          ideasGenerated: data.ideasGenerated || 0
         });
       }
     } catch (error) {
@@ -59,8 +60,9 @@ export default function StartupHub({ onNavigate }: StartupHubProps) {
       const timeout = setTimeout(async () => {
         try {
           const response = await startupGuideService.generateIdeas(value, selectedDomain);
-          if (response.data?.suggestions) {
-            setSuggestions(response.data.suggestions.slice(0, 3));
+          const suggestions = response.suggestions || response.data?.suggestions;
+          if (suggestions) {
+            setSuggestions(suggestions.slice(0, 3));
           }
         } catch (error) {
           console.error('Failed to get suggestions:', error);
@@ -89,13 +91,14 @@ export default function StartupHub({ onNavigate }: StartupHubProps) {
       const response = await startupGuideService.generateIdeas(idea, selectedDomain);
       console.log('📡 StartupHub: API Response:', response);
       
-      if (response.data?.ideas) {
+      const ideas = response.ideas || response.data?.ideas;
+      if (ideas) {
         setStats(prev => ({
           ...prev,
-          ideasGenerated: prev.ideasGenerated + response.data.ideas.length
+          ideasGenerated: prev.ideasGenerated + ideas.length
         }));
-        console.log('✅ StartupHub: API Success - Navigating with', response.data.ideas.length, 'ideas');
-        onNavigate('idea', { ideas: response.data.ideas, problem: idea, domain: selectedDomain });
+        console.log('✅ StartupHub: API Success - Navigating with', ideas.length, 'ideas');
+        onNavigate('idea', { ideas, problem: idea, domain: selectedDomain });
       } else {
         throw new Error('No ideas in response');
       }

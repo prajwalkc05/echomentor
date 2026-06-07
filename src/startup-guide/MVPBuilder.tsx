@@ -22,11 +22,10 @@ export default function MVPBuilder({ initialData }: MVPBuilderProps) {
     setLoading(true);
     try {
       const response = await startupGuideService.generateMVP(idea);
-      if (response.data) {
-        setMvpData(response.data);
-        if (response.data.recommendedStack) {
-          setSelectedStack(response.data.recommendedStack);
-        }
+      const data = response.data || response;
+      if (data) {
+        setMvpData(data);
+        if (data.recommendedStack) setSelectedStack(data.recommendedStack);
       }
     } catch (error: any) {
       console.error('Failed to generate MVP:', error);

@@ -28,11 +28,12 @@ export default function AICofounder() {
   const loadProgress = async () => {
     try {
       const response = await startupGuideService.getProgress();
-      if (response.data) {
+      const data = response.data || response;
+      if (data) {
         setProgress({
-          mvp: response.data.mvpCompletion || 0,
-          validation: response.data.validationScore || 0,
-          funding: response.data.fundingReadiness || 0
+          mvp: data.mvpCompletion || 0,
+          validation: data.validationScore || 0,
+          funding: data.fundingReadiness || 0
         });
       }
     } catch (error) {
@@ -64,11 +65,12 @@ export default function AICofounder() {
 
     try {
       const response = await startupGuideService.chatWithCofounder(textToSend, { messages });
-      if (response.data) {
+      const data = response.data || response;
+      if (data) {
         setMessages(prev => [...prev, {
           role: 'ai',
-          content: response.data.message,
-          suggestions: response.data.suggestions
+          content: data.message,
+          suggestions: data.suggestions
         }]);
       }
     } catch (error: any) {

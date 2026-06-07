@@ -34,9 +34,10 @@ export default function RoadmapStudio({ initialData }: RoadmapStudioProps) {
     setLoading(true);
     try {
       const response = await startupGuideService.generateRoadmap(idea);
-      if (response.data) {
-        setRoadmap(response.data.roadmap || []);
-        calculateProgress(response.data.roadmap || []);
+      const data = response.data || response;
+      if (data) {
+        setRoadmap(data.roadmap || []);
+        calculateProgress(data.roadmap || []);
       }
     } catch (error: any) {
       console.error('Failed to generate roadmap:', error);
