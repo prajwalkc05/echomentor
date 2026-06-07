@@ -111,11 +111,16 @@ export default function IdeaLab({ onNavigate, initialData }: IdeaLabProps) {
 
   const toggleSave = async (id: string, ideaData: StartupIdea) => {
     try {
-      if (savedIdeas.includes(id)) {
-        setSavedIdeas(prev => prev.filter(i => i !== id));
+      const mongoId = (ideaData as any)._id || id;
+      
+      if (savedIdeas.includes(mongoId)) {
+        // Unsave: Update status to 'generated' instead of creating duplicate
+        await startupGuideService.unsaveIdea(mongoId);
+        setSavedIdeas(prev => prev.filter(i => i !== mongoId));
       } else {
-        await startupGuideService.saveIdea(ideaData);
-        setSavedIdeas(prev => [...prev, id]);
+        // Save: Update existing idea status to 'saved'
+        await startupGuideService.updateIdeaStatus(mongoId, 'saved');
+        setSavedIdeas(prev => [...prev, mongoId]);
       }
     } catch (error: any) {
       console.error('Failed to save idea:', error);
@@ -263,15 +268,15 @@ export default function IdeaLab({ onNavigate, initialData }: IdeaLabProps) {
                   Validate
                 </button>
                 <button
-                  onClick={() => toggleSave(idea.id, idea)}
+                  onClick={() => toggleSave((ideaData as any)._id || idea.id, idea)}
                   className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    savedIdeas.includes(idea.id)
+                    savedIdeas.includes((idea as any)._id || idea.id)
                       ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
                       : 'bg-white/5 hover:bg-white/10'
                   }`}
                 >
                   <Bookmark size={16} />
-                  {savedIdeas.includes(idea.id) ? 'Saved' : 'Save'}
+                  {savedIdeas.includes((idea as any)._id || idea.id) ? 'Saved' : 'Save'}
                 </button>
                 <button
                   onClick={() => handleGenerateMVP(idea)}

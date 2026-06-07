@@ -378,6 +378,14 @@ export const startupGuideService = {
     return api.post('/api/startup/save', ideaData);
   },
 
+  async unsaveIdea(ideaId: string) {
+    return api.put(`/api/startup/unsave/${ideaId}`, {});
+  },
+
+  async updateIdeaStatus(ideaId: string, status: string) {
+    return api.put(`/api/startup/status/${ideaId}`, { status });
+  },
+
   async getSavedIdeas() {
     return api.get('/api/startup/saved');
   },
