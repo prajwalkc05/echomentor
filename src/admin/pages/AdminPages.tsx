@@ -29,16 +29,15 @@ export function AdminAIUsage() {
   const fetchAIUsage = async () => {
     try {
       setRefreshing(true);
-      // Try to get real data from backend
       const data = await adminApi.get('/api/admin/ai-usage');
       console.log('AI Usage Data:', data);
       
-      const aiStats = data.stats || data.data || {};
+      const aiStats = data.stats || data || {};
+      const hourlyReqs = aiStats.hourlyRequests || [];
       
-      // Generate hourly breakdown from total requests
       const hourlyData = Array.from({ length: 24 }, (_, i) => ({
         hour: `${i}:00`,
-        requests: aiStats.hourlyRequests?.[i] || Math.floor((aiStats.totalRequests || 0) / 24 + Math.random() * 50),
+        requests: Array.isArray(hourlyReqs) && hourlyReqs[i] ? hourlyReqs[i].requests : 0,
       }));
 
       setStats({
@@ -49,31 +48,19 @@ export function AdminAIUsage() {
         recentLogs: aiStats.recentLogs || [],
         hourlyData,
       });
-    } catch (error) {
-      console.error('Failed to fetch AI usage:', error);
-      
-      // Use generated sample data
-      const totalReqs = Math.floor(Math.random() * 50000) + 10000;
-      const todayReqs = Math.floor(Math.random() * 500) + 100;
-      
-      setStats({
-        totalRequests: totalReqs,
-        todayRequests: todayReqs,
-        tokenUsage: Math.floor(totalReqs * 0.15),
-        cost: Math.floor(totalReqs * 0.08),
-        recentLogs: Array.from({ length: 8 }, () => ({
-          user: `User ${Math.floor(Math.random() * 100)}`,
-          action: ['Chat', 'Code Assist', 'Resume', 'PPT'][Math.floor(Math.random() * 4)],
-          tokens: Math.floor(Math.random() * 2000 + 500),
-          timestamp: `${Math.floor(Math.random() * 60)} min ago`,
-        })),
-        hourlyData: Array.from({ length: 24 }, (_, i) => ({
-          hour: `${i}:00`,
-          requests: Math.floor(Math.random() * 200 + 50),
-        })),
-      });
-    } finally {
       setLoading(false);
+    } catch (error: any) {
+      console.error('Failed to fetch AI usage:', error);
+      setStats({
+        totalRequests: 0,
+        todayRequests: 0,
+        tokenUsage: 0,
+        cost: 0,
+        recentLogs: [],
+        hourlyData: [],
+      });
+      setLoading(false);
+    } finally {
       setRefreshing(false);
     }
   };

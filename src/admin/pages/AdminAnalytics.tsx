@@ -27,8 +27,8 @@ export default function AdminAnalytics() {
       const response = await adminApi.get('/api/admin/analytics');
       console.log('Analytics Response:', response);
       
-      const statsData = response.stats || {};
-      const chartData = response.dailyData || [];
+      const statsData = response.stats || response || {};
+      const chartData = response.dailyData || response.data || [];
       const featureData = response.featureUsage || [];
 
       setStats({
@@ -38,12 +38,13 @@ export default function AdminAnalytics() {
         totalRequests: statsData.totalRequests || 0,
       });
       
-      setDailyData(chartData.length > 0 ? chartData : []);
-      setFeatureUsage(featureData.length > 0 ? featureData : []);
+      setDailyData(chartData);
+      setFeatureUsage(featureData);
       setError(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch analytics:', err);
-      setError('Fetching real-time data...');
+      setError(`Failed to load: ${err.message || 'Unknown error'}`);
+      setStats({ totalUsers: 0, activeUsers: 0, totalRevenue: 0, totalRequests: 0 });
       setDailyData([]);
       setFeatureUsage([]);
     } finally {
