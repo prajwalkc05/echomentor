@@ -3,13 +3,13 @@ import AdminSidebar from './components/AdminSidebar';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminAnalytics from './pages/AdminAnalytics';
-import { AdminSubscriptions, AdminAIUsage, AdminResume, AdminPPT, AdminCourses, AdminOpportunities, AdminNotifications, AdminCoupons, AdminSettings, AdminSecurity } from './pages/AdminPages';
+import { AdminSubscriptions, AdminAIUsage, AdminResume, AdminPPT, AdminCourses, AdminOpportunities, AdminNotifications, AdminSettings, AdminSecurity } from './pages/AdminPages';
 import AdminStartupGuide from './pages/AdminStartupGuide';
 
 export type AdminPage =
   | 'dashboard' | 'users' | 'subscriptions' | 'analytics'
   | 'ai-usage' | 'resume' | 'ppt' | 'courses' | 'startup'
-  | 'opportunities' | 'notifications' | 'coupons' | 'settings' | 'security';
+  | 'opportunities' | 'notifications' | 'settings' | 'security';
 
 export default function AdminApp({ onLogout }: { onLogout: () => void }) {
   const [page, setPage] = useState<AdminPage>('dashboard');
@@ -29,7 +29,6 @@ export default function AdminApp({ onLogout }: { onLogout: () => void }) {
         {page === 'startup' && <AdminStartupGuide />}
         {page === 'opportunities' && <AdminOpportunities />}
         {page === 'notifications' && <AdminNotifications />}
-        {page === 'coupons' && <AdminCoupons />}
         {page === 'settings' && <AdminSettings />}
         {page === 'security' && <AdminSecurity />}
       </div>

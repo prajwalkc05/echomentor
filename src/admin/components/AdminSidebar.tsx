@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, CreditCard, Bot, FileText, Presentation, BookOpen, Rocket, Briefcase, Bell, Tag, Settings, Shield, BarChart3, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Bot, FileText, Presentation, BookOpen, Rocket, Briefcase, Bell, Settings, Shield, BarChart3, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { AdminPage } from '../AdminApp';
 import { useState } from 'react';
 
@@ -14,7 +14,6 @@ const NAV = [
   { id: 'startup', label: 'Startup Guide', icon: Rocket },
   { id: 'opportunities', label: 'Opportunities', icon: Briefcase },
   { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'coupons', label: 'Coupons & Discounts', icon: Tag },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'security', label: 'Security', icon: Shield },
 ];
