@@ -861,12 +861,10 @@ export function AdminNotifications() {
 }
 
 export function AdminCoupons() {
-  const [coupons, setCoupons] = useState([
-    { id: '1', code: 'SAVE50', discount: '50% off', expiry: 'Dec 31, 2024', active: true },
-    { id: '2', code: 'WELCOME20', discount: '20% off', expiry: 'Jan 15, 2025', active: true },
-    { id: '3', code: 'PREMIUM30', discount: '₹30 off', expiry: 'Feb 01, 2025', active: false },
-  ]);
+  const [coupons, setCoupons] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     code: '',
     discount: '',
@@ -874,51 +872,133 @@ export function AdminCoupons() {
     maxUses: '',
     description: ''
   });
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
-  const handleAddCoupon = () => {
-    if (!formData.code.trim() || !formData.discount.trim()) return;
-    
-    const newCoupon = {
-      id: Date.now().toString(),
-      code: formData.code.toUpperCase(),
-      discount: formData.discount,
-      expiry: formData.expiry || 'No expiry',
-      active: true
-    };
-    
-    setCoupons([newCoupon, ...coupons]);
-    setFormData({ code: '', discount: '', expiry: '', maxUses: '', description: '' });
-    setShowForm(false);
+  useEffect(() => {
+    fetchCoupons();
+  }, []);
+
+  const showToast = (type: 'success' | 'error', msg: string) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 3000);
   };
 
-  const toggleCouponStatus = (id: string) => {
-    setCoupons(coupons.map(coupon => 
-      coupon.id === id ? { ...coupon, active: !coupon.active } : coupon
-    ));
+  const fetchCoupons = async () => {
+    try {
+      setLoading(true);
+      const data = await adminApi.get('/api/admin/coupons');
+      setCoupons(data.coupons || []);
+    } catch (error) {
+      console.error('Failed to fetch coupons:', error);
+      showToast('error', 'Failed to fetch coupons');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteCoupon = (id: string) => {
-    setCoupons(coupons.filter(coupon => coupon.id !== id));
+  const handleAddCoupon = async () => {
+    if (!formData.code.trim() || !formData.discount.trim()) {
+      showToast('error', 'Code and discount are required');
+      return;
+    }
+    
+    try {
+      const payload = {
+        code: formData.code.toUpperCase(),
+        discount: formData.discount,
+        expiry: formData.expiry || undefined,
+        maxUses: formData.maxUses ? parseInt(formData.maxUses) : undefined,
+        description: formData.description || undefined
+      };
+
+      if (editingId) {
+        await adminApi.put(`/api/admin/coupons/${editingId}`, payload);
+        showToast('success', 'Coupon updated successfully');
+      } else {
+        await adminApi.post('/api/admin/coupons', payload);
+        showToast('success', 'Coupon created successfully');
+      }
+      
+      setFormData({ code: '', discount: '', expiry: '', maxUses: '', description: '' });
+      setShowForm(false);
+      setEditingId(null);
+      fetchCoupons();
+    } catch (error: any) {
+      console.error('Failed to save coupon:', error);
+      showToast('error', error.message || 'Failed to save coupon');
+    }
+  };
+
+  const toggleCouponStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      await adminApi.put(`/api/admin/coupons/${id}`, { active: !currentStatus });
+      showToast('success', `Coupon ${currentStatus ? 'deactivated' : 'activated'} successfully`);
+      fetchCoupons();
+    } catch (error) {
+      console.error('Failed to toggle coupon status:', error);
+      showToast('error', 'Failed to update coupon status');
+    }
+  };
+
+  const deleteCoupon = async (id: string, code: string) => {
+    if (!confirm(`Delete coupon "${code}"? This action cannot be undone.`)) return;
+    
+    try {
+      await adminApi.delete(`/api/admin/coupons/${id}`);
+      showToast('success', 'Coupon deleted successfully');
+      fetchCoupons();
+    } catch (error) {
+      console.error('Failed to delete coupon:', error);
+      showToast('error', 'Failed to delete coupon');
+    }
+  };
+
+  const handleEdit = (coupon: any) => {
+    setFormData({
+      code: coupon.code || '',
+      discount: coupon.discount || '',
+      expiry: coupon.expiry ? new Date(coupon.expiry).toISOString().split('T')[0] : '',
+      maxUses: coupon.maxUses?.toString() || '',
+      description: coupon.description || ''
+    });
+    setEditingId(coupon._id);
+    setShowForm(true);
   };
 
   return (
     <AdminPage>
+      {toast && (
+        <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl text-sm font-medium shadow-xl border ${
+          toast.type === 'success'
+            ? 'bg-green-950 border-green-500/30 text-green-300'
+            : 'bg-red-950 border-red-500/30 text-red-300'
+        }`}>
+          {toast.msg}
+        </div>
+      )}
+
       <PageHeader 
         title="Coupons & Discounts" 
         subtitle="Create and manage promo codes" 
         action={
-          <ActionBtn 
-            label="+ New Coupon" 
-            onClick={() => {
-              setShowForm(true);
-              setFormData({ code: '', discount: '', expiry: '', maxUses: '', description: '' });
-            }}
-          />
+          <div className="flex gap-2">
+            <button onClick={fetchCoupons} className="p-2 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-colors">
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <ActionBtn 
+              label="+ New Coupon" 
+              onClick={() => {
+                setShowForm(true);
+                setEditingId(null);
+                setFormData({ code: '', discount: '', expiry: '', maxUses: '', description: '' });
+              }}
+            />
+          </div>
         } 
       />
       
       {showForm && (
-        <SectionCard title="Create New Coupon">
+        <SectionCard title={editingId ? 'Edit Coupon' : 'Create New Coupon'}>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -969,42 +1049,73 @@ export function AdminCoupons() {
               />
             </div>
             <div className="flex gap-2">
-              <ActionBtn label="Create Coupon" onClick={handleAddCoupon} variant="success" />
-              <ActionBtn label="Cancel" onClick={() => setShowForm(false)} variant="ghost" />
+              <ActionBtn label={editingId ? 'Update Coupon' : 'Create Coupon'} onClick={handleAddCoupon} variant="success" />
+              <ActionBtn label="Cancel" onClick={() => { setShowForm(false); setEditingId(null); }} variant="ghost" />
             </div>
           </div>
         </SectionCard>
       )}
       
-      <SectionCard title={`Coupons (${coupons.length})`}>
-        <div className="space-y-2">
-          {coupons.map((coupon) => (
-            <div key={coupon.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-white font-semibold text-sm">{coupon.code}</p>
-                  <Badge label={coupon.active ? 'active' : 'inactive'} />
+      <SectionCard title={`All Coupons (${coupons.length})`}>
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">Loading coupons...</div>
+        ) : coupons.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-8">No coupons created yet. Click "+ New Coupon" to create one.</p>
+        ) : (
+          <div className="space-y-2">
+            {coupons.map((coupon) => (
+              <div key={coupon._id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-white font-semibold text-sm">{coupon.code}</p>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      coupon.active 
+                        ? 'bg-green-500/15 text-green-400 border border-green-500/25' 
+                        : 'bg-red-500/15 text-red-400 border border-red-500/25'
+                    }`}>
+                      {coupon.active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <p className="text-gray-500 text-xs">
+                    {coupon.discount}
+                    {coupon.expiry ? ` • Expires: ${new Date(coupon.expiry).toLocaleDateString()}` : ' • No expiry'}
+                    {coupon.maxUses ? ` • Max uses: ${coupon.maxUses}` : ''}
+                  </p>
+                  {coupon.description && (
+                    <p className="text-gray-600 text-xs mt-1">{coupon.description}</p>
+                  )}
                 </div>
-                <p className="text-gray-500 text-xs">{coupon.discount} • Expires: {coupon.expiry}</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(coupon)}
+                    className="p-2 hover:bg-blue-500/10 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <Edit2 size={14} className="text-blue-400" />
+                  </button>
+                  <button
+                    onClick={() => toggleCouponStatus(coupon._id, coupon.active)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      coupon.active
+                        ? 'bg-orange-500/10 text-orange-400 hover:bg-orange-500/20'
+                        : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                    }`}
+                    title={coupon.active ? 'Deactivate' : 'Activate'}
+                  >
+                    {coupon.active ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button
+                    onClick={() => deleteCoupon(coupon._id, coupon.code)}
+                    className="p-2 hover:bg-red-500/10 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} className="text-red-400" />
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <ActionBtn 
-                  label={coupon.active ? 'Deactivate' : 'Activate'} 
-                  onClick={() => toggleCouponStatus(coupon.id)} 
-                  variant={coupon.active ? 'danger' : 'success'} 
-                />
-                <ActionBtn 
-                  label="Delete" 
-                  onClick={() => deleteCoupon(coupon.id)} 
-                  variant="danger" 
-                />
-              </div>
-            </div>
-          ))}
-          {coupons.length === 0 && (
-            <p className="text-gray-500 text-sm text-center py-8">No coupons created yet.</p>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </SectionCard>
     </AdminPage>
   );
