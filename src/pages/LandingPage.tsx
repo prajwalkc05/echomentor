@@ -57,14 +57,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
       {/* Navbar */}
       <nav className={`flex items-center justify-between px-8 py-4 border-b sticky top-0 backdrop-blur-md z-50 ${navBg}`}>
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 bg-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-600/30">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="9" r="5" fill="white" opacity="0.9"/>
-              <circle cx="9.5" cy="8" r="1.5" fill="#7c3aed"/>
-              <circle cx="14.5" cy="8" r="1.5" fill="#7c3aed"/>
-              <path d="M9 13 Q12 16 15 13" stroke="#7c3aed" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-            </svg>
-          </div>
+          <img src="/images/logo.jpg" alt="EchoMentor Logo" className="w-9 h-9 rounded-xl object-cover shadow-lg shadow-purple-600/30" />
           <span className="text-xl font-bold">
             <span className={dark ? 'text-white' : 'text-gray-900'}>Echo</span>
             <span className="text-purple-500">Mentor</span>
@@ -452,9 +445,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
       <footer className={`border-t py-8 px-8 ${dark ? 'border-white/5' : 'border-gray-200'}`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-purple-600 rounded-lg flex items-center justify-center">
-              <Zap size={14} className="text-white" />
-            </div>
+            <img src="/images/logo.jpg" alt="EchoMentor Logo" className="w-7 h-7 rounded-lg object-cover" />
             <span className={`font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Echo<span className="text-purple-500">Mentor</span></span>
           </div>
           <p className={`text-sm ${dark ? 'text-gray-600' : 'text-gray-400'}`}>© 2025 EchoMentor. All rights reserved.</p>

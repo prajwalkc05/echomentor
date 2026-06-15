@@ -33,12 +33,12 @@ export default function AdminSidebar({ currentPage, onNavigate, onLogout }: Prop
       <div className="flex items-center justify-between px-4 py-5 border-b border-white/5">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-linear-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white">E</div>
+            <img src="/images/logo.jpg" alt="EchoMentor Logo" className="w-7 h-7 rounded-lg object-cover" />
             <span className="text-white font-bold text-sm">EchoMentor</span>
             <span className="text-purple-400 text-xs bg-purple-500/20 px-1.5 py-0.5 rounded-md">Admin</span>
           </div>
         )}
-        {collapsed && <div className="w-7 h-7 rounded-lg bg-linear-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white mx-auto">E</div>}
+        {collapsed && <img src="/images/logo.jpg" alt="EchoMentor Logo" className="w-7 h-7 rounded-lg object-cover mx-auto" />}
         <button onClick={() => setCollapsed(p => !p)} className="text-gray-500 hover:text-white transition-colors ml-auto">
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>

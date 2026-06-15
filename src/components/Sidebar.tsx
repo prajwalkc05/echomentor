@@ -38,14 +38,7 @@ export default function Sidebar({ currentPage, onNavigate, aiToolsOpen, setAiToo
       {/* Logo */}
       <div className="p-4 pb-6">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => onNavigate('dashboard')}>
-          <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="9" r="5" fill="white" opacity="0.9"/>
-              <circle cx="9.5" cy="8" r="1.5" fill="#7c3aed"/>
-              <circle cx="14.5" cy="8" r="1.5" fill="#7c3aed"/>
-              <path d="M9 13 Q12 16 15 13" stroke="#7c3aed" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-            </svg>
-          </div>
+          <img src="/images/logo.jpg" alt="EchoMentor Logo" className="w-8 h-8 rounded-lg object-cover" />
           <span className="text-lg font-bold">
             <span className="text-white">Echo</span>
             <span className="text-purple-400">Mentor</span>
